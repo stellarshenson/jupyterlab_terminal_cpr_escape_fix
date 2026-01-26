@@ -12,3 +12,6 @@ This journal tracks substantive work on documents, diagrams, and documentation c
 
 3. **Task - CI/CD and README updates** (v0.1.3): Updated GitHub Actions workflows per JUPYTERLAB_EXTENSION.md and added deprecation warning to README<br>
    **Result**: Updated `build.yml` to add `ignore_links` parameter to check-links step for badge URLs (npmjs, pepy.tech, static.pepy.tech). Updated `check-release.yml` and `prep-release.yml` to add `steps_to_skip: "build-changelog"` and `RH_SINCE_LAST_STABLE: 'true'` environment variable - required for direct commit workflow without PRs. Added GitHub-style `[!WARNING]` alert to README.md indicating extension will be deprecated once JupyterLab addresses the CPR issue in a GA release. Ran `jlpm run lint` to fix formatting across all files.
+
+4. **Task - GitHub repository setup** (v0.1.3): Pushed project to GitHub and updated package.json URLs<br>
+   **Result**: Added remote origin `https://github.com/stellarshenson/jupyterlab_terminal_cpr_escape_fix.git` and pushed main branch. Updated `package.json` with correct GitHub URLs: homepage, bugs (issues), and repository fields. CI/CD workflows now active on GitHub - includes build/test pipeline, check-release validation, prep-release and publish-release for jupyter-releaser, enforce-label for PR management, and update-integration-tests for Playwright snapshot updates.
