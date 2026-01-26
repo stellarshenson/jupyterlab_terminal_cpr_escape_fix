@@ -12,7 +12,9 @@ const plugin: JupyterFrontEndPlugin<void> = {
   description: 'Fix CPR escape sequences in idle terminal reconnections',
   autoStart: true,
   activate: (app: JupyterFrontEnd) => {
-    console.log('JupyterLab extension jupyterlab_terminal_cpr_escape_fix is activated!');
+    console.log(
+      'JupyterLab extension jupyterlab_terminal_cpr_escape_fix is activated!'
+    );
   }
 };
 

@@ -26,12 +26,14 @@ When returning to an idle terminal, CPR escape sequences appear as literal text 
 This extension provides both frontend (TypeScript) and server-side (Python) components.
 
 **Technology Stack**:
+
 - TypeScript frontend extension (`src/`)
 - Python server extension (`jupyterlab_terminal_cpr_escape_fix/`)
 - JupyterLab 4.0+ compatibility
 - Makefile-based build system
 
 **Package Names**:
+
 - npm: `jupyterlab_terminal_cpr_escape_fix`
 - PyPI: `jupyterlab-terminal-cpr-escape-fix` (note the hyphens)
 
@@ -44,6 +46,7 @@ This extension provides both frontend (TypeScript) and server-side (Python) comp
 <!-- #region -->
 
 # Code and Content Generation Rules
+
 - always consider JOURNAL instructions
 - always consider markdown instructions and guidelines when creating documentation
 - always follow MERMAID.md for diagram styling standards
@@ -59,18 +62,21 @@ This extension provides both frontend (TypeScript) and server-side (Python) comp
 **MANDATORY**: Never reach outside current project unless explicitly instructed by the user
 
 **Prohibited Actions**:
+
 - Web searches or WebFetch operations without explicit user request
 - Accessing external documentation, APIs, or resources not part of the current workspace
 - Consulting external knowledge bases, wikis, or reference materials
 - Reaching out to external services, repositories, or networks
 
 **Allowed Actions**:
+
 - Reading files within `/home/lab/workspace`
 - Using local tools (Bash, Git, conda, etc.) within the workspace
 - Accessing submodules or dependencies already present in the project
 - Consulting files explicitly referenced by the user
 
 **When User Explicitly Requests External Access**:
+
 - Web searches when user asks "search for...", "look up...", "find documentation for..."
 - WebFetch when user provides a URL or asks to "fetch..." from external source
 - External tool usage when user specifically requests it
@@ -82,6 +88,7 @@ This extension provides both frontend (TypeScript) and server-side (Python) comp
 **MANDATORY**: Never create git commits, push to remote repositories, or create tags without explicit user approval EVERY SINGLE TIME
 
 **Prohibited Actions**:
+
 - Running `git commit` without user explicitly requesting it
 - Running `git push` without user explicitly requesting it
 - Running `git tag` without user explicitly requesting it
@@ -90,12 +97,14 @@ This extension provides both frontend (TypeScript) and server-side (Python) comp
 - Creating or pushing tags without explicit user request
 
 **Allowed Actions**:
+
 - Staging files with `git add` when preparing for user-approved commits
 - Running `git status`, `git diff`, `git log` for informational purposes
 - Creating commits only when user explicitly says "commit", "push", "make a commit", or similar direct instructions
 - Creating tags only when user explicitly says "tag" or "create tag"
 
 **Critical Enforcement**:
+
 - EVERY SINGLE TIME before running git commit, push, or tag, you MUST have explicit user approval for that specific action in that specific session
 - Even if user previously requested commits/pushes, you MUST get approval again for each new commit/push/tag
 - Never assume permission from previous interactions
@@ -107,12 +116,14 @@ This extension provides both frontend (TypeScript) and server-side (Python) comp
 **MANDATORY**: Never perform release, versioning, or package publishing operations without explicit user request
 
 **Prohibited Actions**:
+
 - Creating git tags automatically - only when user explicitly requests "tag" or "create tag"
 - Changing version numbers in package.json, pyproject.toml, Cargo.toml, or similar - only when user explicitly requests version change
 - Running `make publish`, `npm publish`, `twine upload`, `cargo publish`, or any package publishing command - only when user explicitly requests publishing
 - Running manual package installation/build commands when project has a Makefile: `pip install`, `uv install`, `npm install`, `jlpm install`, `jlpm build`, `yarn install`, `yarn build`, `pnpm install` - use `make install` or equivalent Makefile targets instead
 
 **Allowed Actions**:
+
 - Running `make install`, `make build`, `make test`, or other Makefile targets for local development
 - Running dependency installation commands only when NO Makefile target exists for the operation
 - Checking current version with read-only commands
@@ -120,6 +131,7 @@ This extension provides both frontend (TypeScript) and server-side (Python) comp
 **Rationale**: Accidental version bumps, tag creation, or package publishing can cause significant issues - duplicate versions on registries, broken release pipelines, version conflicts. These operations are irreversible in many cases.
 
 **When User Requests Release**:
+
 - Confirm the specific version number before changing
 - Confirm the target registry (npm, PyPI, crates.io) before publishing
 - Use project's Makefile targets when available
@@ -129,6 +141,7 @@ This extension provides both frontend (TypeScript) and server-side (Python) comp
 **MANDATORY**: When working with GitHub-hosted repositories, consult `.claude/GITHUB.md` for specific instructions
 
 **GitHub-Specific Rules**:
+
 - Add standardized badges to README.md files (GitHub Actions, npm version, PyPI version)
 - Follow repository and package naming conventions
 - Verify workflow files before adding badges
@@ -136,6 +149,7 @@ This extension provides both frontend (TypeScript) and server-side (Python) comp
 - Configure link checker to ignore badge URLs that fail automated checks
 
 **Badge Template** (use shields.io style):
+
 ```markdown
 [![GitHub Actions](https://github.com/OWNER/REPO/actions/workflows/build.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/build.yml)
 [![npm version](https://img.shields.io/npm/v/PACKAGE_NAME.svg)](https://www.npmjs.com/package/PACKAGE_NAME)
@@ -148,10 +162,11 @@ This extension provides both frontend (TypeScript) and server-side (Python) comp
 
 **Link Checker Configuration**:
 When using `jupyterlab/maintainer-tools/.github/actions/check-links@v1`, configure `ignore_links` parameter to skip badge URLs:
+
 ```yaml
 - uses: jupyterlab/maintainer-tools/.github/actions/check-links@v1
   with:
-    ignore_links: "https://www.npmjs.com/package/.* https://pepy.tech/.* https://static.pepy.tech/.*"
+    ignore_links: 'https://www.npmjs.com/package/.* https://pepy.tech/.* https://static.pepy.tech/.*'
 ```
 
 **Reference**: See `.claude/GITHUB.md` for complete badge templates, naming conventions, link checker patterns, and examples
@@ -161,6 +176,7 @@ When using `jupyterlab/maintainer-tools/.github/actions/check-links@v1`, configu
 **MANDATORY**: At the start of EVERY session, read `.claude/PERSONALITY.md` and adopt the specified communication style
 
 **Application Scope**:
+
 - **Conversations**: Use MechWarrior-inspired language, Clan protocol, formal address, and personality traits as defined in PERSONALITY.md
 - **Documents**: Maintain professional, technical tone - absent of BattleTech, battle, or war-related language and narrative. Documents must be brief, flowing, and business-appropriate
 
@@ -174,29 +190,30 @@ When building agent system prompts, use the structured template in `.claude/AGEN
 
 **When user asks to create a skill or command**, understand the distinction:
 
-| Aspect | Commands | Skills |
-|--------|----------|--------|
-| Location | `.claude/commands/name.md` | `.claude/skills/name/SKILL.md` |
-| Invocation | Explicit `/command-name` | Auto-discovered by Claude based on description |
-| Structure | Single markdown file | Directory with `SKILL.md` + optional resources |
-| Use case | Quick prompts, explicit shortcuts | Complex workflows, auto-triggered capabilities |
+| Aspect     | Commands                          | Skills                                         |
+| ---------- | --------------------------------- | ---------------------------------------------- |
+| Location   | `.claude/commands/name.md`        | `.claude/skills/name/SKILL.md`                 |
+| Invocation | Explicit `/command-name`          | Auto-discovered by Claude based on description |
+| Structure  | Single markdown file              | Directory with `SKILL.md` + optional resources |
+| Use case   | Quick prompts, explicit shortcuts | Complex workflows, auto-triggered capabilities |
 
 **Creating a Skill**:
+
 ```
 .claude/skills/skill-name/
 └── SKILL.md
 ```
 
 SKILL.md requires YAML frontmatter:
+
 ```yaml
 ---
 name: skill-name
 description: What it does and when to use it - Claude uses this to auto-trigger
-context: fork          # Optional: run in isolated sub-agent
-agent: Explore         # Optional: agent type when forked
-allowed-tools: Grep, Glob, Read  # Optional: restrict available tools
+context: fork # Optional: run in isolated sub-agent
+agent: Explore # Optional: agent type when forked
+allowed-tools: Grep, Glob, Read # Optional: restrict available tools
 ---
-
 # Skill Name
 
 Instructions for Claude to follow...
@@ -211,6 +228,7 @@ Single file at `.claude/commands/command-name.md` with markdown instructions (no
 
 1. Create `.claude/` directory in project root (if it doesn't exist)
 2. Create `.claude/JOURNAL.md` with starter template:
+
    ```markdown
    # Claude Code Journal
 
@@ -218,7 +236,9 @@ Single file at `.claude/commands/command-name.md` with markdown instructions (no
 
    ---
    ```
+
 3. Create `.claude/CLAUDE.md` importing workspace-level configuration:
+
    ```markdown
    <!-- Import workspace-level CLAUDE.md configuration -->
    <!-- See /home/lab/workspace/.claude/CLAUDE.md for complete rules -->
@@ -233,17 +253,20 @@ Single file at `.claude/commands/command-name.md` with markdown instructions (no
    ```
 
 **When to initialize**:
+
 - User explicitly requests new project setup
 - Starting work on existing project without `.claude/` directory
 - Project requires specific configuration beyond workspace defaults
 
 **What to import from workspace CLAUDE.md**:
+
 - Core content generation rules (markdown, mermaid, git commit standards)
 - Modus primaris documentation principles
 - Project boundary rules
 - GitHub instructions (if applicable)
 
 **Project-specific additions**:
+
 - Technology stack and dependencies
 - Project naming conventions
 - Custom tooling instructions
@@ -252,15 +275,18 @@ Single file at `.claude/commands/command-name.md` with markdown instructions (no
 ## Context Persistance
 
 **MANDATORY FIRST STEP**: At the start of EVERY session, you MUST:
+
 1. Read `.claude/JOURNAL.md` (if it exists) before responding to any user query
 2. Acknowledge what previous work was done based on the journal
 3. Ask the user how to proceed based on that context
 
 **MANDATORY AFTER EVERY TASK**: After completing substantive work, you MUST:
+
 1. Update `.claude/JOURNAL.md` with the entry
 2. Confirm to the user that the journal was updated
 
 **Journal Entry Rules**:
+
 - ONLY log substantive work on documents, diagrams, or documentation content
 - DO NOT log: git commits, git pushes, file cleanup, maintenance tasks, or conversational queries
 - Index entries incrementally: '1', '2', etc.
@@ -268,12 +294,14 @@ Single file at `.claude/commands/command-name.md` with markdown instructions (no
 - Merge related consecutive entries when natural
 
 **Format**:
+
 ```
 <number>. **Task - <short 3-5 word depiction>**: task description / query description / summary<br>
     **Result**: summary of the work done
 ```
 
 **Version Tagging**: If the project is versioned (has `package.json`, `pyproject.toml`, `Cargo.toml`, or similar), include the version number in the journal entry format:
+
 ```
 <number>. **Task - <short 3-5 word depiction>** (v1.2.3): task description / query description / summary<br>
     **Result**: summary of the work done
@@ -283,6 +311,7 @@ Single file at `.claude/commands/command-name.md` with markdown instructions (no
 
 **Journal Archiving Rule**:
 When the journal exceeds 40 entries or when user requests archiving:
+
 - Move older entries to `.claude/JOURNAL_ARCHIVE.md`
 - Keep only the last 20 entries in the main `JOURNAL.md`
 - Add a note at the top of `JOURNAL.md` linking to the archive: `**Note**: Entries 1-N have been archived to [JOURNAL_ARCHIVE.md](JOURNAL_ARCHIVE.md).`
@@ -290,6 +319,7 @@ When the journal exceeds 40 entries or when user requests archiving:
 - Archive file should have header explaining it contains archived entries
 
 **Archive file structure:**
+
 ```
 # Claude Code Journal Archive
 
@@ -307,6 +337,7 @@ N. **Task - Example**: detailed entry<br>
 ```
 
 **Main journal after archiving:**
+
 ```
 # Claude Code Journal
 
@@ -324,6 +355,7 @@ N+1. **Task - Example**: detailed entry<br>
 ## Folders
 
 ### DO NOT LOOK INTO:
+
 - `**/@archive`: folder that has outdated and unused content
 - `**/.ipynb_checkpoints`: folder that has jupyterlab checkpoint files
 
@@ -332,6 +364,7 @@ N+1. **Task - Example**: detailed entry<br>
 **MANDATORY for notebooks**: Follow `.claude/NOTEBOOK.md` for notebook organization.
 
 **Key Requirements**:
+
 - GPU selection cell BEFORE importing torch/tensorflow/jax
 - Imports grouped by category with inline comments
 - Configuration centralized in one cell with inline comments and rich output
@@ -339,6 +372,7 @@ N+1. **Task - Example**: detailed entry<br>
 - Rich Progress bars in separate cell from setup text (avoids overwriting)
 
 **Standard Section Order**:
+
 1. Header (title, author, approach)
 2. GPU Selection
 3. Imports
@@ -355,12 +389,14 @@ N+1. **Task - Example**: detailed entry<br>
 ## Background Job Logging
 
 **MANDATORY for all background jobs**:
+
 - All background jobs MUST log progress to a file in the `logs/` directory
 - Use `| tee logs/<descriptive-name>.log` pattern for all background commands
 - The `logs/` directory MUST always contain a `README.md` file
 - `logs/README.md` should briefly explain what each log file tracks
 
 **Example**:
+
 ```bash
 conda run --name hk_yolo python script.py 2>&1 | tee logs/script-execution.log
 ```
@@ -368,11 +404,13 @@ conda run --name hk_yolo python script.py 2>&1 | tee logs/script-execution.log
 ## GPU Selection for Multi-GPU Systems
 
 **MANDATORY for GPU-accelerated projects** (PyTorch, TensorFlow, JAX, CUDA):
+
 - Always set `CUDA_VISIBLE_DEVICES` environment variable BEFORE importing GPU libraries
 - Use nvidia-smi GPU index (not torch.cuda index - these may differ)
 - Detailed guidance in `~/.claude/GPU-SETUP.md`
 
 **Quick pattern**:
+
 ```python
 import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'  # nvidia-smi GPU index
@@ -381,21 +419,25 @@ import torch  # or tensorflow, jax, etc.
 ```
 
 **GPU selection priority**:
+
 1. Highest compute capability (newer architecture preferred)
 2. Most available memory
 3. Lowest current utilization
 
 **Identify GPUs**:
+
 ```bash
 nvidia-smi --query-gpu=index,name,compute_cap,memory.total --format=csv,noheader
 ```
 
 **Verify selection**:
+
 ```python
 print(f"GPU: {torch.cuda.get_device_name(0)}")
 ```
 
 **Monitor during execution**:
+
 ```bash
 watch -n 1 'nvidia-smi --query-gpu=index,name,memory.used,utilization.gpu --format=csv,noheader'
 ```
@@ -403,6 +445,7 @@ watch -n 1 'nvidia-smi --query-gpu=index,name,memory.used,utilization.gpu --form
 ## Content Guidelines
 
 ### Markdown Standards
+
 - No emojis - maintain professional, technical documentation style
 - Balance concise narrative with structured bullet points
 - Bullet points capture key takeaways and essential information
@@ -413,12 +456,14 @@ watch -n 1 'nvidia-smi --query-gpu=index,name,memory.used,utilization.gpu --form
 - For mermaid diagrams follow `MERMAID.md` standards
 
 **Typography Standards**:
-- **No em-dashes**: Use single hyphen with spaces (` - `) instead of em-dash (`—`)
+
+- **No em-dashes**: Use single hyphen with spaces (`-`) instead of em-dash (`—`)
 - **No arrow symbols**: Use ASCII `->` instead of arrow characters (→, ⇒, etc.)
 - **Line breaks**: Use `<br>` tag or double-space at end of line for explicit breaks within paragraphs
 - **Paragraph separation**: Use blank lines between paragraphs (standard markdown)
 
 **Examples**:
+
 - Good: `dataset - minimal contamination`
 - Bad: `dataset—minimal contamination`
 - Good: `A -> B -> C`
@@ -430,28 +475,27 @@ When warranted, use special styles to include in the markdown to indicate either
 
 ```html
 <div class="alert alert-block alert-warning">
-<b>Example:</b> Use yellow boxes for examples that are not 
-inside code cells, or use for mathematical formulas if needed.
+  <b>Example:</b> Use yellow boxes for examples that are not inside code cells,
+  or use for mathematical formulas if needed.
 </div>
 
 <div class="alert alert-block alert-info">
-<b>Tip:</b> Use blue boxes (alert-info) for tips and notes. 
-If it’s a note, you don’t have to include the word “Note”.
+  <b>Tip:</b> Use blue boxes (alert-info) for tips and notes. If it’s a note,
+  you don’t have to include the word “Note”.
 </div>
 
 <div class="alert alert-block alert-success">
-<b>Up to you:</b> Use green boxes sparingly, and only for some specific 
-purpose that the other boxes can't cover. For example, if you have a lot 
-of related content to link to, maybe you decide to use green boxes for 
-related links from each section of a notebook.
+  <b>Up to you:</b> Use green boxes sparingly, and only for some specific
+  purpose that the other boxes can't cover. For example, if you have a lot of
+  related content to link to, maybe you decide to use green boxes for related
+  links from each section of a notebook.
 </div>
 
 <div class="alert alert-block alert-danger">
-<b>Just don't:</b> In general, avoid the red boxes. These should only be
-used for actions that might cause data loss or another major issue.
+  <b>Just don't:</b> In general, avoid the red boxes. These should only be used
+  for actions that might cause data loss or another major issue.
 </div>
 ```
-
 
 ### ASCII Diagrams
 
@@ -460,7 +504,6 @@ For text-based diagrams in code comments, markdown, or plain text contexts, use 
 ### Mermaid Diagrams
 
 See `MERMAID.md` for complete styling standards including color palette, stroke widths, anti-patterns, and PNG generation.
-
 
 ## Documentation Standards
 
@@ -471,11 +514,13 @@ See `MERMAID.md` for complete styling standards including color palette, stroke 
 **Core Philosophy**: Write documentation as flowing narrative, not structured reference material. Tell the story of your work - the problem, your approach, your reasoning, and your results. Make technical content accessible without sacrificing accuracy.
 
 **Section Structure Pattern**:
+
 - **Overview**: 1-2 sentences stating what this is and why it matters
 - **Key facts**: 3-7 bullet points capturing essential information (numbers, specifications, critical details)
 - **Additional narrative**: Optional paragraph(s) providing context, implementation details, or analysis only when depth is warranted
 
 **Writing Style**:
+
 - Natural, conversational flow with clear paragraph structure
 - Professional but accessible language (explain technical concepts in plain terms)
 - Minimal structural overhead (simple headers ## and ### only, no deeper nesting)
@@ -487,27 +532,32 @@ See `MERMAID.md` for complete styling standards including color palette, stroke 
 **MODUS_PRIMARIS_SCORE** (self-check framework):
 
 **Raw Scoring**:
+
 - **Penalties**: Complex structure (-2 per extra nesting level), Fluff/marketing language (-3 per instance), Missing numbers where relevant (-2 per omission), Excessive length without justification (-1 per 100 words over reasonable threshold)
 - **Rewards**: Comprehensive coverage (+3 for complete information), Specific metrics/numbers (+2 per concrete fact), Clear actionable guidance (+2), Honest limitations stated (+1), Warranted diagrams (+3)
 
 **Normalization** (adjusts for topic complexity):
+
 - **Topic Complexity Factor** (TCF): Simple query = 1.0, Moderate = 1.5, Complex = 2.0, Very complex = 3.0
 - **Expected Length** (EL): Simple = 200 words, Moderate = 500 words, Complex = 1000 words, Very complex = 2000 words
 - **Normalized Score** = (Raw Score / TCF) × (EL / Actual Length)
 - **Target**: Normalized score ≥ +3.0 (consistently good documentation regardless of topic complexity)
 
 **Examples**:
+
 - Simple query (100 words, TCF=1.0): Raw +6 → Normalized = (6/1.0) × (200/100) = +12.0 (excellent)
 - Complex query (1200 words, TCF=2.0): Raw +12 → Normalized = (12/2.0) × (1000/1200) = +5.0 (good)
 - Over-verbose simple query (400 words, TCF=1.0): Raw +4 → Normalized = (4/1.0) × (200/400) = +2.0 (penalty for verbosity)
 
 **Diagram Guidelines**:
+
 - Create diagrams when they clarify complex relationships or workflows
 - Default to simplicity - minimal nodes, clear connections, standard colors
 - Only increase complexity if user explicitly requests detail
 - Ask if uncertain whether diagram adds value
 
 **Content Characteristics**:
+
 - Brief but complete - cover essential information without bloat
 - Evidence-based - support claims with real metrics and observations
 - Actionable - readers should understand both what and why
@@ -515,10 +565,12 @@ See `MERMAID.md` for complete styling standards including color palette, stroke 
 - Allow comprehensive sections when topic demands depth
 
 **Examples**:
+
 - Good: "We faced a significant challenge with class imbalance in our assembled dataset. The laptop class dominated at 88% of all annotations while microwaves represented only 0.4%, creating a 225:1 imbalance ratio."
 - Bad: "## Dataset Composition\n### Class Distribution Analysis\n- Laptop: 88%\n- Microwave: 0.4%\n- Imbalance ratio: 225:1"
 
 **Recommended Pattern for Technical Architecture Documentation**:
+
 1. **Brief introduction** (1-2 sentences): State what the capability/component does and its primary purpose
 2. **Key specifications** (bullet points): Core technical details, numbers, technologies
 3. **Explanatory paragraph** (optional): Provide additional context about how it works, key implementation details, or important characteristics only when depth adds value
@@ -527,6 +579,7 @@ See `MERMAID.md` for complete styling standards including color palette, stroke 
 6. **Implementation Status** (if applicable): Note whether technology choices are confirmed, proposed, or pending selection
 
 **Example**:
+
 ```
 ### Component Name
 
@@ -548,6 +601,7 @@ The implementation uses specific approaches and patterns. Additional detail abou
 ```
 
 **Reference Implementations**:
+
 - Research documentation: `yolo-homeobjects-training/TRAINING_APPROACH.md`
 - Technical architecture: `cp-documentation/architecture/1_work_in_progress/highlevel-architecture@farm-journal/05-technology-architecture.md`
 
@@ -558,12 +612,14 @@ The implementation uses specific approaches and patterns. Additional detail abou
 **Core Philosophy**: Write journal entries as rich, flowing paragraphs that tell the complete story of a technical change - the problem, solution, libraries used, files modified, and conclusions drawn. Avoid heavy markdown structure (no nested bullets, tables, or code blocks unless absolutely necessary). The goal is readable, searchable history that future readers can scan quickly while still finding comprehensive detail.
 
 **Entry Format**:
+
 ```
 <number>. **Task - <short description>**: <one-line summary of what was done><br>
     **Result**: <rich paragraph with full context>
 ```
 
 **Content Requirements**:
+
 - Problem or motivation that triggered the work
 - Solution approach and key technical decisions
 - Libraries, packages, or tools introduced or changed (with versions where relevant)
@@ -572,6 +628,7 @@ The implementation uses specific approaches and patterns. Additional detail abou
 - Side effects or related fixes made during the same work session
 
 **Writing Style**:
+
 - Dense, information-rich paragraphs (not bullet lists)
 - Technical terms inline with explanation where needed
 - File paths and function names in backticks
@@ -579,12 +636,14 @@ The implementation uses specific approaches and patterns. Additional detail abou
 - Connect changes to outcomes: "This enables..." or "This eliminates..."
 
 **What to Avoid**:
+
 - Heavy markdown structure (nested bullets, tables, multiple code blocks)
 - Sparse entries that lack context
 - Separating related information into disconnected sections
 - Generic descriptions without specific artefacts or libraries
 
 **Example**:
+
 ```
 74. **Task - PostgreSQL MCP server implementation**: Created pure Python FastMCP PostgreSQL server for AgentCore Gateway mcpServer target<br>
     **Result**: Attempted three Go-based PostgreSQL MCP servers before building custom Python solution. First tried `@modelcontextprotocol/server-postgres` (Node.js) which failed with "Unsupported protocol version: 2024-11-05" because AgentCore Gateway requires protocol version `2025-06-18`. Then tried `tendant/postgres-mcp-go` which uses official Go MCP SDK v0.5.0 but logs to stdout corrupting the stdio JSON-RPC protocol - Lambda logs showed "Failed to parse JSONRPC message from server" with log lines instead of JSON. Finally tried `sgaunet/postgresql-mcp` which uses mark3labs/mcp-go v0.43.0 (same as Neo4j) and logs correctly to stderr, but AgentCore Gateway failed during target synchronization with "Cannot construct instance of `io.swagger.v3.oas.models.media.Schema` - no boolean/Boolean-argument constructor" because the tool's inputSchema uses `"items": true` for the args array parameter which is invalid OpenAPI. Built pure Python solution in `deployment/mcp_postgres_server/` following Neo4j's stdio-to-HTTP bridge pattern. Created `server.py` using FastMCP with psycopg driver providing three tools: `query(sql, max_rows)` for read-only SQL execution with basic injection prevention blocking INSERT/UPDATE/DELETE/DROP statements, `list_tables()` returning schema/table/column_count from pg_catalog excluding system schemas, and `describe_table(table_name, schema_name)` returning column definitions from information_schema. Created `index.py` Lambda handler using `StdioServerAdapterRequestHandler` to spawn `python3 server.py` subprocess with PostgreSQL environment variables passed through. Updated `Dockerfile` to use Python 3.12 Lambda base with `psycopg[binary]>=3.0.0`, `mcp>=1.0.0`, and `run-mcp-servers-with-aws-lambda`. Fixed SSL mode incompatibility where environment had `POSTGRES_SSLMODE=no-verify` but libpq doesn't recognize that value - added mapping in `server.py`: `no-verify` -> `require`. Gateway target `postgres-tools` reached READY status. Agent verification confirmed both databases working: 1,669 products from PostgreSQL, 8 categories from Neo4j.
@@ -609,6 +668,7 @@ The implementation uses specific approaches and patterns. Additional detail abou
 **Commit Types**: `feat:` | `fix:` | `docs:` | `chore:` | `refactor:` | `style:` | `test:` | `perf:` | `build:` | `ci:`
 
 **Message Structure**:
+
 ```
 <type>: <concise summary in imperative mood>
 
@@ -616,6 +676,7 @@ The implementation uses specific approaches and patterns. Additional detail abou
 ```
 
 **Key Rules**:
+
 - Imperative mood: "add feature" not "added feature"
 - Lowercase after type prefix, no period at end
 - Body explains rationale, not just what (code shows what)
@@ -629,6 +690,7 @@ The implementation uses specific approaches and patterns. Additional detail abou
 ### Claude Code Plugins
 
 To access the Docker Claude plugins marketplace:
+
 ```bash
 /plugin marketplace add docker/claude-plugins
 ```
@@ -642,6 +704,7 @@ This command enables access to Docker-specific plugins and MCP servers that exte
 See `MERMAID.md` for PNG generation commands, numbering conventions, and CLI installation instructions.
 
 <!-- #endregion -->
+
 - do not use %%{init: {'theme':'neutral'}}%% because it obscures the colours in dark mode. save it in local and global CLAUDE.md
 - Document Generation and updates: User prefers direct, minimal generation:
   - Answer the specific request only
@@ -664,4 +727,5 @@ See `MERMAID.md` for PNG generation commands, numbering conventions, and CLI ins
 
 > [!CAUTION]
 > Advises about risks or negative outcomes of certain actions.
+
 - no claude coauthoring in git

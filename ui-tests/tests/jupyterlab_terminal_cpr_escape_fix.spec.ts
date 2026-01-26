@@ -16,6 +16,10 @@ test('should emit an activation console message', async ({ page }) => {
   await page.goto();
 
   expect(
-    logs.filter(s => s === 'JupyterLab extension jupyterlab_terminal_cpr_escape_fix is activated!')
+    logs.filter(
+      s =>
+        s ===
+        'JupyterLab extension jupyterlab_terminal_cpr_escape_fix is activated!'
+    )
   ).toHaveLength(1);
 });

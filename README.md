@@ -8,6 +8,9 @@
 [![Brought To You By KOLOMOLO](https://img.shields.io/badge/Brought%20To%20You%20By-KOLOMOLO-00ffff?style=flat)](https://kolomolo.com)
 [![Donate PayPal](https://img.shields.io/badge/Donate-PayPal-blue?style=flat)](https://www.paypal.com/donate/?hosted_button_id=B4KPBJDLLXTSA)
 
+> [!WARNING]
+> This extension provides a workaround for a known JupyterLab/terminado issue. It will be deprecated once JupyterLab addresses this problem in a GA release. Monitor the upstream issue tracker for official fixes.
+
 Fix the JupyterLab terminado issue where returning to an idle terminal causes cursor position report (CPR) escape sequences to appear as literal text.
 
 ## Features
