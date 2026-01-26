@@ -1,0 +1,7 @@
+{
+  "ServerApp": {
+    "jpserver_extensions": {
+      "jupyterlab_terminal_cpr_escape_fix": true
+    }
+  }
+}

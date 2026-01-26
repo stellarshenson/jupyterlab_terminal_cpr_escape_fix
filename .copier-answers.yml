@@ -1,0 +1,17 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: v4.5.1
+_src_path: https://github.com/jupyterlab/extension-template
+author_email: konrad.jelen@gmail.com
+author_name: Stellars Henson
+has_ai_rules: false
+has_binder: false
+has_settings: false
+kind: frontend-and-server
+labextension_name: jupyterlab_terminal_cpr_escape_fix
+project_short_description: Fix to the jupyterlab terminado issue that when returning
+    to an idle JupyterLab terminal, cursor position report (CPR) escape sequences
+    appear as literal text
+python_name: jupyterlab_terminal_cpr_escape_fix
+repository: ''
+test: true
+
