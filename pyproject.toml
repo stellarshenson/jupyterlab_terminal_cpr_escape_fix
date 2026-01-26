@@ -89,3 +89,7 @@ before-build-python = ["jlpm clean:all"]
 
 [tool.check-wheel-contents]
 ignore = ["W002"]
+
+[project.urls]
+Homepage = "https://github.com/stellarshenson/jupyterlab_terminal_cpr_escape_fix"
+Repository = "https://github.com/stellarshenson/jupyterlab_terminal_cpr_escape_fix"
