@@ -3,27 +3,16 @@ import {
   JupyterFrontEndPlugin
 } from '@jupyterlab/application';
 
-import { requestAPI } from './request';
-
 /**
- * Initialization data for the jupyterlab_terminal_cpr_escape_fix extension.
+ * Plugin that confirms the CPR filter extension is active.
+ * The actual filtering happens server-side in the Python extension.
  */
 const plugin: JupyterFrontEndPlugin<void> = {
   id: 'jupyterlab_terminal_cpr_escape_fix:plugin',
-  description: 'Fix to the jupyterlab terminado issue that when returning to an idle JupyterLab terminal, cursor position report (CPR) escape sequences appear as literal text',
+  description: 'Fix CPR escape sequences in idle terminal reconnections',
   autoStart: true,
   activate: (app: JupyterFrontEnd) => {
     console.log('JupyterLab extension jupyterlab_terminal_cpr_escape_fix is activated!');
-
-    requestAPI<any>('hello')
-      .then(data => {
-        console.log(data);
-      })
-      .catch(reason => {
-        console.error(
-          `The jupyterlab_terminal_cpr_escape_fix server extension appears to be missing.\n${reason}`
-        );
-      });
   }
 };
 
