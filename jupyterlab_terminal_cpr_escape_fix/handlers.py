@@ -13,7 +13,7 @@ ESC_CPR = re.compile(r'\x1b\[\d+;\d+R')
 ESC_DA = re.compile(r'\x1b\[\?[\d;]*c')
 ESC_DA2 = re.compile(r'\x1b\[>[\d;]*c')
 ESC_DECRPM = re.compile(r'\x1b\[\??\d+;\d+\$y')
-ESC_OSC = re.compile(r'\x1b\]\d+;[^\x07\x1b]*(?:\x07|\x1b\\)')
+ESC_OSC = re.compile(r'\x1b\](?!52;)\d+;[^\x07\x1b]*(?:\x07|\x1b\\)')
 
 # Patterns WITHOUT ESC prefix (bare remnants after shell strips ESC)
 # Fish shell receives ESC[row;colR, strips ESC, outputs [row;colR
@@ -39,25 +39,27 @@ FILTER_PATTERNS = [
 ]
 
 
-def filter_terminal_responses(text: str) -> tuple[str, dict[str, int]]:
+def filter_terminal_responses(text: str) -> tuple[str, dict[str, int], list[str]]:
     """Filter terminal query responses from output.
 
     Handles both ESC-prefixed sequences and bare remnants where the
     shell has stripped the ESC byte.
 
     Returns:
-        Tuple of (filtered_text, counts_dict)
+        Tuple of (filtered_text, counts_dict, matched_strings)
     """
     counts = {}
+    matched = []
     result = text
 
     for name, pattern in FILTER_PATTERNS:
         matches = pattern.findall(result)
         counts[name] = len(matches)
         if matches:
+            matched.extend(matches)
             result = pattern.sub('', result)
 
-    return result, counts
+    return result, counts, matched
 
 
 def debug_escape_sequences(text: str) -> list[str]:

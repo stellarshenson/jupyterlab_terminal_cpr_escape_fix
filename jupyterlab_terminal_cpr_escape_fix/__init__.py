@@ -45,39 +45,16 @@ def _load_jupyter_server_extension(server_app):
 
         def _filtered_on_pty_read(self, text):
             import logging
-            from .handlers import debug_escape_sequences
             logger = logging.getLogger('jupyterlab_terminal_cpr_escape_fix.handlers')
-
-            # Debug: log raw escape sequences in every read
-            escapes = debug_escape_sequences(text)
-            if escapes:
-                logger.info(
-                    "CPR filter: raw pty read (%d bytes) escapes: %r",
-                    len(text), escapes[:10]
-                )
-
-            filtered, counts = filter_terminal_responses(text)
+            filtered, counts, matched = filter_terminal_responses(text)
             total = sum(counts.values())
             if total > 0:
                 active = {k: v for k, v in counts.items() if v > 0}
-                # Log what was actually removed for diagnostics
-                import re
-                removed = []
-                for name, pattern in [
-                    ('bare_cpr', re.compile(r'(?<!\x1b)\[\d+;\d+R')),
-                    ('bare_da', re.compile(r'(?<!\x1b)\[\?[\d;]*c')),
-                    ('bare_da2', re.compile(r'(?<!\x1b)\[>[\d;]*c')),
-                ]:
-                    for m in pattern.finditer(text):
-                        start = max(0, m.start() - 10)
-                        end = min(len(text), m.end() + 10)
-                        context = text[start:end]
-                        removed.append(f'{name}:{m.group()!r} ctx:{context!r}')
                 logger.info(
-                    "CPR filter: FILTERED %d sequences: %s | matches: %s",
+                    "CPR filter: FILTERED %d sequences: %s | %r",
                     total,
                     ', '.join(f'{v} {k}' for k, v in active.items()),
-                    '; '.join(removed[:5]) if removed else 'esc-prefixed only'
+                    matched
                 )
             _original_on_pty_read(self, filtered)
 
