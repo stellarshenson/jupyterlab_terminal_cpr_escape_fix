@@ -245,11 +245,29 @@ class TestSequenceComplement:
         assert result == text
 
     def test_preserves_window_title_osc0(self):
-        """OSC 0 sets window title - should be filtered (not clipboard)."""
+        """OSC 0 sets window title - must NOT be filtered."""
         text = '\x1b]0;My Terminal\x07'
         result, counts, _ = filter_terminal_responses(text)
-        assert result == ''
-        assert counts['osc'] == 1
+        assert result == text
+        assert counts['osc'] == 0
+
+    def test_preserves_osc7_cwd(self):
+        """OSC 7 sets working directory - must NOT be filtered."""
+        text = '\x1b]7;file:///home/user\x07'
+        result, counts, _ = filter_terminal_responses(text)
+        assert result == text
+
+    def test_preserves_osc8_hyperlink(self):
+        """OSC 8 hyperlinks - must NOT be filtered."""
+        text = '\x1b]8;;https://example.com\x07link\x1b]8;;\x07'
+        result, counts, _ = filter_terminal_responses(text)
+        assert result == text
+
+    def test_preserves_osc133_prompt_mark(self):
+        """OSC 133 shell integration - must NOT be filtered."""
+        text = '\x1b]133;A\x07'
+        result, counts, _ = filter_terminal_responses(text)
+        assert result == text
 
     def test_preserves_osc52_empty_payload(self):
         """OSC 52 with empty payload (clipboard query)."""

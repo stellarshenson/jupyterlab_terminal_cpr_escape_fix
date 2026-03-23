@@ -13,7 +13,9 @@ ESC_CPR = re.compile(r'\x1b\[\d+;\d+R')
 ESC_DA = re.compile(r'\x1b\[\?[\d;]*c')
 ESC_DA2 = re.compile(r'\x1b\[>[\d;]*c')
 ESC_DECRPM = re.compile(r'\x1b\[\??\d+;\d+\$y')
-ESC_OSC = re.compile(r'\x1b\](?!52;)\d+;[^\x07\x1b]*(?:\x07|\x1b\\)')
+# Only filter OSC color query responses (4, 10, 11, 12), not commands like
+# OSC 0 (window title), OSC 7 (cwd), OSC 8 (hyperlinks), OSC 52 (clipboard)
+ESC_OSC = re.compile(r'\x1b\](?:4|10|11|12);[^\x07\x1b]*(?:\x07|\x1b\\)')
 
 # Patterns WITHOUT ESC prefix (bare remnants after shell strips ESC)
 # Fish shell receives ESC[row;colR, strips ESC, outputs [row;colR
