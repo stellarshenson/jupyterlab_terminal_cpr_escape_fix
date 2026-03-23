@@ -60,10 +60,24 @@ def _load_jupyter_server_extension(server_app):
             total = sum(counts.values())
             if total > 0:
                 active = {k: v for k, v in counts.items() if v > 0}
+                # Log what was actually removed for diagnostics
+                import re
+                removed = []
+                for name, pattern in [
+                    ('bare_cpr', re.compile(r'(?<!\x1b)\[\d+;\d+R')),
+                    ('bare_da', re.compile(r'(?<!\x1b)\[\?[\d;]*c')),
+                    ('bare_da2', re.compile(r'(?<!\x1b)\[>[\d;]*c')),
+                ]:
+                    for m in pattern.finditer(text):
+                        start = max(0, m.start() - 10)
+                        end = min(len(text), m.end() + 10)
+                        context = text[start:end]
+                        removed.append(f'{name}:{m.group()!r} ctx:{context!r}')
                 logger.info(
-                    "CPR filter: FILTERED %d sequences: %s",
+                    "CPR filter: FILTERED %d sequences: %s | matches: %s",
                     total,
-                    ', '.join(f'{v} {k}' for k, v in active.items())
+                    ', '.join(f'{v} {k}' for k, v in active.items()),
+                    '; '.join(removed[:5]) if removed else 'esc-prefixed only'
                 )
             _original_on_pty_read(self, filtered)
 
