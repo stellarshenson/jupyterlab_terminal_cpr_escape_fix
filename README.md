@@ -14,13 +14,28 @@
 > [!WARNING]
 > This extension provides a workaround for a known JupyterLab/terminado issue. It will be deprecated once JupyterLab addresses this problem in a GA release. Monitor the upstream issue tracker for official fixes.
 
-Fix the JupyterLab terminado issue where returning to an idle terminal causes cursor position report (CPR) escape sequences to appear as literal text.
+Fix the JupyterLab terminado issue where returning to an idle terminal causes cursor position report (CPR) escape sequences to appear as literal text. This is particularly noticeable with fish shell, where sequences like `[2;2R[3;1R` or `[?1;2c[>0;276;0c` appear at the prompt after reconnecting.
 
-## Features
+## How it works
 
-- **CPR escape sequence handling** - Intercepts and processes CPR sequences that would otherwise appear as `^[[6n` or similar garbage text
-- **Server-side processing** - Python backend handles terminal state management
-- **Automatic activation** - Extension activates on JupyterLab startup with no configuration required
+When a JupyterLab terminal sits idle, the shell (especially fish) periodically queries terminal capabilities. These queries accumulate in terminado's buffer. On reconnect, the buffer drains and the responses appear as literal text because xterm.js can't process them fast enough.
+
+This extension patches `TermSocket.on_pty_read()` server-side to filter terminal query responses before they reach the browser. It handles both ESC-prefixed sequences and bare remnants where fish shell has stripped the ESC byte.
+
+**Filtered sequences** (terminal query responses):
+
+- CPR - Cursor Position Report (`ESC[row;colR`)
+- DA/DA2 - Device Attributes (`ESC[?...c`, `ESC[>...c`)
+- DECRPM - DEC Report Mode (`ESC[?mode;value$y`)
+- OSC 4/10/11/12 - Color query responses
+
+**Preserved sequences** (functional terminal output):
+
+- All SGR color codes, cursor movement, erase, scroll
+- OSC 0 (window/tab title), OSC 7 (cwd), OSC 8 (hyperlinks)
+- OSC 52 (clipboard - used by companion clipboard extension)
+- OSC 133 (shell integration prompt marks)
+- Bracketed paste mode, alternate screen, all DEC private modes
 
 ## Requirements
 

@@ -41,21 +41,38 @@ def _load_jupyter_server_extension(server_app):
     try:
         from jupyter_server_terminals.handlers import TermSocket
 
+        import logging
+        import time
+        from collections import Counter
+
         _original_on_pty_read = TermSocket.on_pty_read
+        _logger = logging.getLogger('jupyterlab_terminal_cpr_escape_fix.handlers')
+        _LOG_INTERVAL = 60  # seconds
+        _accum = {'counts': Counter(), 'matched': [], 'last_flush': time.monotonic()}
+
+        def _flush_log():
+            if _accum['counts']:
+                active = {k: v for k, v in _accum['counts'].items() if v > 0}
+                unique = sorted(set(_accum['matched']))
+                _logger.info(
+                    "CPR filter: FILTERED %d sequences in last %ds: %s | %r",
+                    sum(_accum['counts'].values()),
+                    _LOG_INTERVAL,
+                    ', '.join(f'{v} {k}' for k, v in active.items()),
+                    unique
+                )
+            _accum['counts'] = Counter()
+            _accum['matched'] = []
+            _accum['last_flush'] = time.monotonic()
 
         def _filtered_on_pty_read(self, text):
-            import logging
-            logger = logging.getLogger('jupyterlab_terminal_cpr_escape_fix.handlers')
             filtered, counts, matched = filter_terminal_responses(text)
             total = sum(counts.values())
             if total > 0:
-                active = {k: v for k, v in counts.items() if v > 0}
-                logger.info(
-                    "CPR filter: FILTERED %d sequences: %s | %r",
-                    total,
-                    ', '.join(f'{v} {k}' for k, v in active.items()),
-                    matched
-                )
+                _accum['counts'].update({k: v for k, v in counts.items() if v > 0})
+                _accum['matched'].extend(matched)
+            if time.monotonic() - _accum['last_flush'] >= _LOG_INTERVAL:
+                _flush_log()
             _original_on_pty_read(self, filtered)
 
         TermSocket.on_pty_read = _filtered_on_pty_read
