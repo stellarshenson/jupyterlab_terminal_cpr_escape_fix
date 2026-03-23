@@ -4,7 +4,7 @@
   "description": "JupyterLab jupyterlab_terminal_cpr_escape_fix Integration Tests",
   "private": true,
   "scripts": {
-    "start": "jupyter lab --config jupyter_server_test_config.py",
+    "start": "jupyter lab --config jupyter_server_test_config.py --port 8899 --no-browser",
     "test": "jlpm playwright test",
     "test:update": "jlpm playwright test --update-snapshots"
   },

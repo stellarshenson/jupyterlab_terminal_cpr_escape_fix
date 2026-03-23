@@ -23,3 +23,31 @@ test('should emit an activation console message', async ({ page }) => {
     )
   ).toHaveLength(1);
 });
+
+test.describe('Terminal integration', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto();
+    await page.waitForTimeout(2000);
+  });
+
+  test('terminal opens successfully', async ({ page }) => {
+    await page.menu.clickMenuItem('File>New>Terminal');
+    const terminal = page.locator('.jp-Terminal');
+    await expect(terminal).toBeVisible({ timeout: 10000 });
+  });
+
+  test('terminal accepts keyboard input', async ({ page }) => {
+    await page.menu.clickMenuItem('File>New>Terminal');
+    const terminal = page.locator('.jp-Terminal');
+    await expect(terminal).toBeVisible({ timeout: 10000 });
+    await terminal.click();
+    await page.waitForTimeout(1000);
+
+    await page.keyboard.type('echo PLAYWRIGHT_TEST');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(2000);
+
+    const xtermScreen = page.locator('.xterm-screen');
+    await expect(xtermScreen).toBeVisible();
+  });
+});
