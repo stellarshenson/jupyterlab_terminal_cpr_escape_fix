@@ -45,7 +45,17 @@ def _load_jupyter_server_extension(server_app):
 
         def _filtered_on_pty_read(self, text):
             import logging
+            from .handlers import debug_escape_sequences
             logger = logging.getLogger('jupyterlab_terminal_cpr_escape_fix.handlers')
+
+            # Debug: log raw escape sequences in every read
+            escapes = debug_escape_sequences(text)
+            if escapes:
+                logger.info(
+                    "CPR filter: raw pty read (%d bytes) escapes: %r",
+                    len(text), escapes[:10]
+                )
+
             filtered, counts = filter_terminal_responses(text)
             total = sum(counts.values())
             if total > 0:
