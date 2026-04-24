@@ -269,6 +269,36 @@ class TestSequenceComplement:
         result, counts, _ = filter_terminal_responses(text)
         assert result == text
 
+    def test_preserves_osc10_query(self):
+        """OSC 10 foreground color QUERY (?) - must pass through to terminal."""
+        text = '\x1b]10;?\x07'
+        result, counts, _ = filter_terminal_responses(text)
+        assert result == text
+
+    def test_preserves_osc11_query(self):
+        """OSC 11 background color QUERY (?) - must pass through to terminal."""
+        text = '\x1b]11;?\x07'
+        result, counts, _ = filter_terminal_responses(text)
+        assert result == text
+
+    def test_preserves_osc12_query(self):
+        """OSC 12 cursor color QUERY (?) - must pass through to terminal."""
+        text = '\x1b]12;?\x1b\\'
+        result, counts, _ = filter_terminal_responses(text)
+        assert result == text
+
+    def test_preserves_da2_query(self):
+        """DA2 QUERY (ESC[>c or ESC[>0c) - must pass through to terminal."""
+        assert filter_terminal_responses('\x1b[>c')[0] == '\x1b[>c'
+        assert filter_terminal_responses('\x1b[>0c')[0] == '\x1b[>0c'
+
+    def test_preserves_da_query(self):
+        """DA QUERY (ESC[c or ESC[?c) - must pass through to terminal."""
+        # Note: ESC[c has no ? prefix so our regex doesn't match it anyway
+        # ESC[?c alone is also a query form
+        assert filter_terminal_responses('\x1b[c')[0] == '\x1b[c'
+        assert filter_terminal_responses('\x1b[?c')[0] == '\x1b[?c'
+
     def test_preserves_osc52_empty_payload(self):
         """OSC 52 with empty payload (clipboard query)."""
         osc52 = '\x1b]52;c;\x07'

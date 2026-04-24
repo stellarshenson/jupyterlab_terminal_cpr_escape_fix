@@ -8,21 +8,26 @@ both ESC-prefixed and bare patterns.
 import logging
 import re
 
-# Patterns WITH ESC prefix (standard terminal responses)
+# Patterns WITH ESC prefix (terminal RESPONSE sequences)
+# Only match responses - not queries. Queries are written by shells asking
+# the terminal for info; stripping them breaks terminal capability negotiation.
+# CPR response: ESC[row;colR (requires two numeric params)
+# DA response:  ESC[?p1;p2;...c (requires params after ?)
+# DA2 response: ESC[>p1;p2;p3c (requires semicolon-separated params; bare ESC[>c is a query)
+# DECRPM:       ESC[?mode;value$y
+# OSC response: ESC]N;rgb:... (queries use ESC]N;? which we exclude)
 ESC_CPR = re.compile(r'\x1b\[\d+;\d+R')
-ESC_DA = re.compile(r'\x1b\[\?[\d;]*c')
-ESC_DA2 = re.compile(r'\x1b\[>[\d;]*c')
+ESC_DA = re.compile(r'\x1b\[\?\d+[\d;]*c')
+ESC_DA2 = re.compile(r'\x1b\[>\d+;\d+[\d;]*c')
 ESC_DECRPM = re.compile(r'\x1b\[\??\d+;\d+\$y')
-# Only filter OSC color query responses (4, 10, 11, 12), not commands like
-# OSC 0 (window title), OSC 7 (cwd), OSC 8 (hyperlinks), OSC 52 (clipboard)
-ESC_OSC = re.compile(r'\x1b\](?:4|10|11|12);[^\x07\x1b]*(?:\x07|\x1b\\)')
+ESC_OSC = re.compile(r'\x1b\](?:4|10|11|12);(?!\?)[^\x07\x1b]*(?:\x07|\x1b\\)')
 
 # Patterns WITHOUT ESC prefix (bare remnants after shell strips ESC)
 # Fish shell receives ESC[row;colR, strips ESC, outputs [row;colR
 # These use negative lookbehind to avoid matching ESC-prefixed sequences twice
 BARE_CPR = re.compile(r'(?<!\x1b)\[\d+;\d+R')
-BARE_DA = re.compile(r'(?<!\x1b)\[\?[\d;]*c')
-BARE_DA2 = re.compile(r'(?<!\x1b)\[>[\d;]*c')
+BARE_DA = re.compile(r'(?<!\x1b)\[\?\d+[\d;]*c')
+BARE_DA2 = re.compile(r'(?<!\x1b)\[>\d+;\d+[\d;]*c')
 BARE_DECRPM = re.compile(r'(?<!\x1b)\[\??\d+;\d+\$y')
 
 logger = logging.getLogger(__name__)
