@@ -1,6 +1,6 @@
 {
     "name": "jupyterlab_terminal_cpr_escape_fix",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "description": "Fix to the jupyterlab terminado issue that when returning to an idle JupyterLab terminal, cursor position report (CPR) escape sequences appear as literal text",
     "keywords": [
         "jupyter",
