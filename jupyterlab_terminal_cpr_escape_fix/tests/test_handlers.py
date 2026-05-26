@@ -364,3 +364,125 @@ class TestSequenceComplement:
     def test_matched_strings_empty_when_nothing_filtered(self):
         _, _, matched = filter_terminal_responses('hello world')
         assert matched == []
+
+
+class TestBufferReplaySuppression:
+    """Tests for the TermSocket.open() buffer replay suppression."""
+
+    def test_no_replay_open_suppresses_on_pty_read(self):
+        """Verify that _no_replay_open temporarily silences on_pty_read."""
+        from unittest.mock import MagicMock, patch, PropertyMock
+        from collections import deque
+
+        received = []
+
+        class FakeTerminal:
+            clients = []
+            read_buffer = deque(['line1\n', 'line2\n'], maxlen=1000)
+
+        class FakeTermManager:
+            def get_terminal(self, name):
+                return FakeTerminal()
+
+        class FakeSocket:
+            term_manager = FakeTermManager()
+            term_name = ''
+            terminal = None
+
+            def on_pty_read(self, text):
+                received.append(text)
+
+            def send_json_message(self, msg):
+                pass
+
+        sock = FakeSocket()
+        original_open = FakeSocket.on_pty_read
+
+        # Simulate terminado's open() behavior: drain buffer through on_pty_read
+        def simulated_open(self, url_component=None):
+            self.term_name = url_component or 'tty'
+            self.terminal = self.term_manager.get_terminal(url_component)
+            self.terminal.clients.append(self)
+            self.send_json_message(['setup', {}])
+            buffered = ''
+            preopen_buffer = self.terminal.read_buffer.copy()
+            while preopen_buffer:
+                buffered += preopen_buffer.popleft()
+            if buffered:
+                self.on_pty_read(buffered)
+
+        FakeSocket.open = simulated_open
+
+        # Apply the same patch as __init__.py
+        _original_open = FakeSocket.open
+
+        def _no_replay_open(self, url_component=None):
+            self.on_pty_read = lambda text: None
+            _original_open(self, url_component)
+            try:
+                del self.on_pty_read
+            except AttributeError:
+                pass
+
+        FakeSocket.open = _no_replay_open
+
+        sock.open('test')
+        assert received == [], f"Buffer replay should be suppressed, got: {received}"
+
+    def test_on_pty_read_restored_after_open(self):
+        """After open(), on_pty_read must work normally for live PTY output."""
+        from collections import deque
+
+        received = []
+
+        class FakeTerminal:
+            clients = []
+            read_buffer = deque(['old\n'], maxlen=1000)
+
+        class FakeTermManager:
+            def get_terminal(self, name):
+                return FakeTerminal()
+
+        class FakeSocket:
+            term_manager = FakeTermManager()
+            term_name = ''
+            terminal = None
+
+            def on_pty_read(self, text):
+                received.append(text)
+
+            def send_json_message(self, msg):
+                pass
+
+        def simulated_open(self, url_component=None):
+            self.term_name = url_component or 'tty'
+            self.terminal = self.term_manager.get_terminal(url_component)
+            self.terminal.clients.append(self)
+            self.send_json_message(['setup', {}])
+            buffered = ''
+            preopen_buffer = self.terminal.read_buffer.copy()
+            while preopen_buffer:
+                buffered += preopen_buffer.popleft()
+            if buffered:
+                self.on_pty_read(buffered)
+
+        FakeSocket.open = simulated_open
+        _original_open = FakeSocket.open
+
+        def _no_replay_open(self, url_component=None):
+            self.on_pty_read = lambda text: None
+            _original_open(self, url_component)
+            try:
+                del self.on_pty_read
+            except AttributeError:
+                pass
+
+        FakeSocket.open = _no_replay_open
+
+        sock = FakeSocket()
+        sock.open('test')
+        assert received == []
+
+        # After open, live PTY reads should work
+        sock.on_pty_read('live output\n')
+        assert received == ['live output\n']

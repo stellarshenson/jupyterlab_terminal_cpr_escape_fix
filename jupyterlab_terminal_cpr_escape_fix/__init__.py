@@ -77,8 +77,21 @@ def _load_jupyter_server_extension(server_app):
 
         TermSocket.on_pty_read = _filtered_on_pty_read
 
+        _original_open = TermSocket.open
+
+        def _no_replay_open(self, url_component=None):
+            self.on_pty_read = lambda text: None
+            _original_open(self, url_component)
+            try:
+                del self.on_pty_read
+            except AttributeError:
+                pass
+
+        TermSocket.open = _no_replay_open
+
         server_app.log.info(
-            "jupyterlab_terminal_cpr_escape_fix: Patched TermSocket.on_pty_read with CPR filter"
+            "jupyterlab_terminal_cpr_escape_fix: Patched TermSocket.on_pty_read with CPR filter "
+            "and TermSocket.open to suppress buffer replay"
         )
     except ImportError:
         server_app.log.warning(
