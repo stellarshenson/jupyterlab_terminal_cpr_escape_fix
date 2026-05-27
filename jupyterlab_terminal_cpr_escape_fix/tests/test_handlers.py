@@ -371,7 +371,6 @@ class TestBufferReplaySuppression:
 
     def test_no_replay_open_suppresses_on_pty_read(self):
         """Verify that _no_replay_open temporarily silences on_pty_read."""
-        from unittest.mock import MagicMock, patch, PropertyMock
         from collections import deque
 
         received = []
@@ -396,9 +395,7 @@ class TestBufferReplaySuppression:
                 pass
 
         sock = FakeSocket()
-        original_open = FakeSocket.on_pty_read
 
-        # Simulate terminado's open() behavior: drain buffer through on_pty_read
         def simulated_open(self, url_component=None):
             self.term_name = url_component or 'tty'
             self.terminal = self.term_manager.get_terminal(url_component)
@@ -413,7 +410,6 @@ class TestBufferReplaySuppression:
 
         FakeSocket.open = simulated_open
 
-        # Apply the same patch as __init__.py
         _original_open = FakeSocket.open
 
         def _no_replay_open(self, url_component=None):
@@ -483,6 +479,5 @@ class TestBufferReplaySuppression:
         sock.open('test')
         assert received == []
 
-        # After open, live PTY reads should work
         sock.on_pty_read('live output\n')
         assert received == ['live output\n']
