@@ -43,6 +43,19 @@ This extension provides both frontend (TypeScript) and server-side (Python) comp
 - Follow JUPYTERLAB_EXTENSION.md for extension development patterns
 - Maintain both package.json and package-lock.json in version control
 
+## Observed Effects Logging
+
+**MANDATORY**: Record every observed filter effect in `docs/ACCEPTANCE_CRITERIA.md`
+under the "Observed effects" section, keyed by commit id and date/time, to allow
+back-checking of all desired effects and side effects against the exact code state.
+
+- Log both desired effects (a fix confirmed in real use) and side effects (new
+  behaviour or regression, even benign or guarded ones)
+- Each row cites the commit short id, the date/time of observation, the effect type,
+  the deciding evidence, and the test that now covers it (if any)
+- For effects observed after a commit, stamp the observation date and still cite the
+  commit that caused the behaviour
+
 <!-- #region -->
 
 # Code and Content Generation Rules
