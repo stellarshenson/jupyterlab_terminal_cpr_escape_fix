@@ -98,6 +98,34 @@ class TestFilterBareSequences:
         assert result == ''
         assert counts['bare_decrpm'] == 1
 
+    def test_filters_bare_osc_color_response(self):
+        """Fish strips ESC from both ] introducer and ST, leaving ]11;rgb:..\\."""
+        result, counts, _ = filter_terminal_responses(']10;rgb:c3c3/c3c3/c3c3\\')
+        assert result == ''
+        assert counts['bare_osc'] == 1
+
+    def test_filters_multiple_bare_osc(self):
+        text = ']10;rgb:c3c3/c3c3/c3c3\\]11;rgb:2525/2b2b/3232\\'
+        result, counts, _ = filter_terminal_responses(text)
+        assert result == ''
+        assert counts['bare_osc'] == 2
+
+    def test_filters_bare_osc4_palette(self):
+        """OSC 4 palette response: ]4;idx;rgb:..\\."""
+        result, counts, _ = filter_terminal_responses(']4;1;rgb:ffff/0000/0000\\')
+        assert result == ''
+        assert counts['bare_osc'] == 1
+
+    def test_bare_osc_full_leaked_prompt(self):
+        """Exact leaked bytes observed in a fish prompt after reconnect."""
+        text = (
+            '[?1;2cclear]10;rgb:c3c3/c3c3/c3c3\\]11;rgb:2525/2b2b/3232\\'
+            '[?12;2$y[2;2R[3;1R[>0;276;0c]10;rgb:c3c3/c3c3/c3c3\\'
+            ']11;rgb:2525/2b2b/3232\\[?12;2$y'
+        )
+        result, counts, _ = filter_terminal_responses(text)
+        assert result == 'clear'
+
     def test_bare_cpr_mixed_with_text(self):
         result, counts, _ = filter_terminal_responses('prompt$ [2;2R[3;1R ')
         assert result == 'prompt$  '
@@ -346,6 +374,30 @@ class TestSequenceComplement:
         text = '{"items": [1, 2, 3]}'
         result, counts, _ = filter_terminal_responses(text)
         assert result == text
+
+    # --- bare_osc must not over-filter (protect from unwanted effects) ---
+
+    def test_bare_osc_preserves_plain_text_close_bracket(self):
+        """Plain text with ]10; but no rgb: payload must pass through."""
+        text = 'see note]10; and continue'
+        result, counts, _ = filter_terminal_responses(text)
+        assert result == text
+        assert counts['bare_osc'] == 0
+
+    def test_bare_osc_preserves_bare_osc_query(self):
+        """Bare OSC color QUERY (]11;?\\) must not be stripped - it is rgb-less."""
+        text = ']11;?\\'
+        result, counts, _ = filter_terminal_responses(text)
+        assert result == text
+        assert counts['bare_osc'] == 0
+
+    def test_bare_osc_does_not_double_count_esc_prefixed(self):
+        """ESC-prefixed OSC is caught by 'osc', not 'bare_osc' (lookbehind)."""
+        text = '\x1b]10;rgb:c3c3/c3c3/c3c3\x1b\\'
+        result, counts, _ = filter_terminal_responses(text)
+        assert result == ''
+        assert counts['osc'] == 1
+        assert counts['bare_osc'] == 0
 
     # --- Matched strings return value ---
 

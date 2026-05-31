@@ -2,6 +2,7 @@
 
 DEFAULTS = {
     'suppress_buffer_replay': False,
+    'filter_osc_color_responses': True,
 }
 try:
     from ._version import __version__
@@ -36,7 +37,12 @@ def _load_jupyter_server_extension(server_app):
     server_app: jupyterlab.labapp.LabApp
         JupyterLab application instance
     """
-    from .handlers import filter_terminal_responses
+    from .handlers import filter_terminal_responses, FILTER_PATTERNS
+
+    # bare_osc is in FILTER_PATTERNS by default; drop it when the toggle is off
+    # so the bare OSC color-response filter can be disabled without code change.
+    if not DEFAULTS['filter_osc_color_responses']:
+        FILTER_PATTERNS[:] = [p for p in FILTER_PATTERNS if p[0] != 'bare_osc']
 
     # Patch on_pty_read directly on the TermSocket class.
     # Replacing the module attribute doesn't work because jupyter_server_terminals

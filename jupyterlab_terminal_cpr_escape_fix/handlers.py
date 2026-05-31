@@ -29,6 +29,11 @@ BARE_CPR = re.compile(r'(?<!\x1b)\[\d+;\d+R')
 BARE_DA = re.compile(r'(?<!\x1b)\[\?\d+[\d;]*c')
 BARE_DA2 = re.compile(r'(?<!\x1b)\[>\d+;\d+[\d;]*c')
 BARE_DECRPM = re.compile(r'(?<!\x1b)\[\??\d+;\d+\$y')
+# Bare OSC color response: fish strips ESC from BOTH the ] introducer and the
+# ST terminator, so ESC]11;rgb:..ST becomes ]11;rgb:..\ as literal text.
+# rgb:-anchored to keep the false-positive surface near zero. Toggled via
+# DEFAULTS['filter_osc_color_responses'] in __init__ (default on).
+BARE_OSC = re.compile(r'(?<!\x1b)\](?:4|10|11|12);(?:\d+;)?rgb:[0-9a-fA-F/]+(?:\x07|\\)')
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +48,7 @@ FILTER_PATTERNS = [
     ('bare_da', BARE_DA),
     ('bare_da2', BARE_DA2),
     ('bare_decrpm', BARE_DECRPM),
+    ('bare_osc', BARE_OSC),
 ]
 
 
