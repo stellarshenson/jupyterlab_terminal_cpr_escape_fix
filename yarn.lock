@@ -8244,8 +8244,8 @@ __metadata:
   linkType: hard
 
 "node-gyp@npm:latest":
-  version: 12.3.0
-  resolution: "node-gyp@npm:12.3.0"
+  version: 12.4.0
+  resolution: "node-gyp@npm:12.4.0"
   dependencies:
     env-paths: ^2.2.0
     exponential-backoff: ^3.1.1
@@ -8259,7 +8259,7 @@ __metadata:
     which: ^6.0.0
   bin:
     node-gyp: bin/node-gyp.js
-  checksum: b02e8776908a83f25b8df88f0b79c46b425f9b7f442ebe3c4a50b9820128c1b44df6b386214c73d509964995d820edbda94bb0c811b6b60a686231afb699acf7
+  checksum: a696e8bf74e83126569b2b7a4deec1065e24dc8c6af84fe77e4211712dddf5b3052c1c98b01013fefda73f0191d1ab87bc2171c832edd34a0fcc6d111dc6f176
   languageName: node
   linkType: hard
 
@@ -9230,11 +9230,11 @@ __metadata:
   linkType: hard
 
 "semver@npm:^7.3.5":
-  version: 7.8.1
-  resolution: "semver@npm:7.8.1"
+  version: 7.8.3
+  resolution: "semver@npm:7.8.3"
   bin:
     semver: bin/semver.js
-  checksum: c6486ac12dc85120fc1daac8001350a4cd8126933720da496b0e8b841f170a35d4856b898b5288dfe7c1771bcadbf32c582254eade40ba16f8b6d296625d2b33
+  checksum: 71c58885666c832cc3b3c868308db29997ec6cc8fca9c8ed0f446d1b503cc10f0298eeb27be7bd3f272d89d1f36e23648d2964e4f6b8774a00fc62dc4ed527db
   languageName: node
   linkType: hard
 
@@ -9745,15 +9745,15 @@ __metadata:
   linkType: hard
 
 "tar@npm:^7.5.4":
-  version: 7.5.15
-  resolution: "tar@npm:7.5.15"
+  version: 7.5.16
+  resolution: "tar@npm:7.5.16"
   dependencies:
     "@isaacs/fs-minipass": ^4.0.0
     chownr: ^3.0.0
     minipass: ^7.1.2
     minizlib: ^3.1.0
     yallist: ^5.0.0
-  checksum: b00ede0737f262691b18bd60aebdd15663c7cdabd40adce64dde0b69f65b7afb91cf31a4cae3bc184e2358aa14371fb0b56d6f7c0c0cc8b0238df1242c0e07ca
+  checksum: 9b7f886f5ce8681a7430f80b9b377bfa498e6feb957b9afe6507db08e59d309f8546b7f76a0c2e47bdb54da4602575a5c7519e287fe94de8302e635032fc94f1
   languageName: node
   linkType: hard
 

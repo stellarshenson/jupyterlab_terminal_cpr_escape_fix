@@ -130,3 +130,6 @@ dmypy.json
 # Local tooling artifacts (journal-tools uv env, Claude Code scheduler)
 uv.lock
 .claude/scheduled_tasks.lock
+
+# Playwright MCP investigation artifacts
+.playwright-mcp/
