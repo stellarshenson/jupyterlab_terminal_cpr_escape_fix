@@ -37,6 +37,13 @@ This extension patches `TermSocket.on_pty_read()` server-side to filter terminal
 - OSC 133 (shell integration prompt marks)
 - Bracketed paste mode, alternate screen, all DEC private modes
 
+**Repaint on attach** (window refresh recovery):
+
+- After a client attaches and the buffer replay drains, the PTY is nudged one row taller and back
+- The kernel delivers SIGWINCH, so the foreground app (Claude Code, vim, htop) repaints its full screen
+- Without it, a refreshed browser shows a torn screen: the replay holds only incremental diff frames, so static regions (status line, input box) are never delivered and never self-heal
+- Toggle: `DEFAULTS['repaint_on_attach']` in `__init__.py` (default on), debounced 5s per terminal
+
 ## Requirements
 
 - JupyterLab >= 4.0.0

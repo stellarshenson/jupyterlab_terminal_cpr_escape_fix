@@ -533,3 +533,194 @@ class TestBufferReplaySuppression:
 
         sock.on_pty_read('live output\n')
         assert received == ['live output\n']
+
+
+class TestWinsizeBounce:
+    """Tests for the repaint-on-attach PTY winsize bounce (_make_winsize_bounce)."""
+
+    def _fake_term(self, rows=52, cols=160):
+        class FakeTerm:
+            def __init__(self):
+                self.size = (rows, cols)
+                self.calls = []
+
+            def getwinsize(self):
+                return self.size
+
+            def setwinsize(self, r, c):
+                self.calls.append((r, c))
+                self.size = (r, c)
+
+        return FakeTerm()
+
+    def _fake_schedule(self):
+        scheduled = []
+
+        def schedule(delay, fn):
+            scheduled.append((delay, fn))
+
+        return scheduled, schedule
+
+    def test_bounce_grows_then_restores(self):
+        """Bounce writes rows+1, then restores the original size one step later."""
+        from jupyterlab_terminal_cpr_escape_fix import _make_winsize_bounce, _BOUNCE_STEP
+
+        term = self._fake_term()
+        scheduled, schedule = self._fake_schedule()
+        _make_winsize_bounce(term, schedule)()
+
+        assert term.calls == [(53, 160)]
+        assert len(scheduled) == 1 and scheduled[0][0] == _BOUNCE_STEP
+
+        scheduled[0][1]()
+        assert term.calls == [(53, 160), (52, 160)]
+        assert term.size == (52, 160)
+
+    def test_bounce_restore_guarded_against_racing_resize(self):
+        """If a real client resize lands mid-bounce, the restore must not clobber it."""
+        from jupyterlab_terminal_cpr_escape_fix import _make_winsize_bounce
+
+        term = self._fake_term()
+        scheduled, schedule = self._fake_schedule()
+        _make_winsize_bounce(term, schedule)()
+
+        term.setwinsize(40, 120)  # external resize racing the bounce
+        term.calls.clear()
+        scheduled[0][1]()
+        assert term.calls == []
+        assert term.size == (40, 120)
+
+    def test_bounce_noop_when_getwinsize_fails(self):
+        """A terminal that cannot report its size is left untouched."""
+        from jupyterlab_terminal_cpr_escape_fix import _make_winsize_bounce
+
+        class BadTerm:
+            def getwinsize(self):
+                raise OSError('no pty')
+
+            def setwinsize(self, r, c):
+                raise AssertionError('must not be called')
+
+        scheduled, schedule = self._fake_schedule()
+        _make_winsize_bounce(BadTerm(), schedule)()
+        assert scheduled == []
+
+    def test_bounce_noop_when_setwinsize_fails(self):
+        """If the grow write fails, no restore is scheduled."""
+        from jupyterlab_terminal_cpr_escape_fix import _make_winsize_bounce
+
+        class HalfBadTerm:
+            def getwinsize(self):
+                return (52, 160)
+
+            def setwinsize(self, r, c):
+                raise OSError('read-only pty')
+
+        scheduled, schedule = self._fake_schedule()
+        _make_winsize_bounce(HalfBadTerm(), schedule)()
+        assert scheduled == []
+
+    def test_loader_wires_bounce_to_real_ptyproc(self):
+        """Drive the real loader and patched open: the bounce must reach the
+        ptyproc of a PtyWithClients-shaped terminal. Regression pin - the
+        wrapper has no winsize API, so wiring the bounce to it silently
+        no-ops in production while fake-term unit tests stay green."""
+        from unittest import mock
+        import tornado.ioloop
+        import jupyterlab_terminal_cpr_escape_fix as ext
+        from jupyter_server_terminals.handlers import TermSocket
+
+        ptyproc = self._fake_term()
+
+        class PtyWithClientsFake:
+            """Shaped like terminado's PtyWithClients: no winsize surface."""
+
+            def __init__(self, pp):
+                self.ptyproc = pp
+
+            def resize_to_smallest(self):
+                pass
+
+        callbacks = []
+
+        class FakeLoop:
+            def call_later(self, delay, fn, *args):
+                callbacks.append(fn)
+
+        class FakeSock:
+            term_name = ''
+
+            def __init__(self):
+                self.terminal = PtyWithClientsFake(ptyproc)
+
+            def on_pty_read(self, text):
+                pass
+
+        def simulated_open(self, url_component=None):
+            self.term_name = url_component or 'tty'
+
+        orig_open = TermSocket.open
+        orig_read = TermSocket.on_pty_read
+        try:
+            TermSocket.open = simulated_open  # loader captures this as _original_open
+            with mock.patch.object(tornado.ioloop.IOLoop, 'current', return_value=FakeLoop()):
+                ext._load_jupyter_server_extension(mock.MagicMock())
+                TermSocket.open(FakeSock(), '8')
+                assert len(callbacks) == 1, f'expected 1 scheduled bounce, got {len(callbacks)}'
+                callbacks[0]()  # bounce -> grows, schedules restore
+                assert len(callbacks) == 2, f'expected restore scheduled, got {len(callbacks)}'
+                callbacks[1]()  # restore
+        finally:
+            TermSocket.open = orig_open
+            TermSocket.on_pty_read = orig_read
+
+        assert ptyproc.calls == [(53, 160), (52, 160)]
+
+    def test_debounce_and_prune(self):
+        """Second attach inside the window is debounced; after aging past it
+        the terminal bounces again and stale _last_bounce entries are pruned
+        (pins the debounce and the in-place prune from the review fixes)."""
+        from unittest import mock
+        import tornado.ioloop
+        import jupyterlab_terminal_cpr_escape_fix as ext
+        from jupyter_server_terminals.handlers import TermSocket
+
+        class PtyWithClientsFake:
+            def __init__(self, pp):
+                self.ptyproc = pp
+
+        callbacks = []
+
+        class FakeLoop:
+            def call_later(self, delay, fn, *args):
+                callbacks.append(fn)
+
+        class FakeSock:
+            def __init__(self, pp):
+                self.terminal = PtyWithClientsFake(pp)
+                self.term_name = ''
+
+            def on_pty_read(self, text):
+                pass
+
+        def simulated_open(self, url_component=None):
+            self.term_name = url_component or 'tty'
+
+        orig_open = TermSocket.open
+        orig_read = TermSocket.on_pty_read
+        try:
+            TermSocket.open = simulated_open  # loader captures this as _original_open
+            now = [1000.0]
+            with mock.patch.object(tornado.ioloop.IOLoop, 'current', return_value=FakeLoop()), \
+                    mock.patch('time.monotonic', lambda: now[0]):
+                ext._load_jupyter_server_extension(mock.MagicMock())
+                TermSocket.open(FakeSock(self._fake_term()), '8')
+                TermSocket.open(FakeSock(self._fake_term()), '8')  # inside the window -> debounced
+                assert len(callbacks) == 1
+                now[0] += 5.0                     # age past the debounce window
+                TermSocket.open(FakeSock(self._fake_term()), '9')  # bounces; prunes stale '8'
+                TermSocket.open(FakeSock(self._fake_term()), '8')  # '8' pruned -> treated as fresh
+                assert len(callbacks) == 3
+        finally:
+            TermSocket.open = orig_open
+            TermSocket.on_pty_read = orig_read

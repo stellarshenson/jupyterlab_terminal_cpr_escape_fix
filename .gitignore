@@ -133,3 +133,7 @@ uv.lock
 
 # Playwright MCP investigation artifacts
 .playwright-mcp/
+
+# graphify knowledge-graph artefacts
+tmp/
+graphify-out/

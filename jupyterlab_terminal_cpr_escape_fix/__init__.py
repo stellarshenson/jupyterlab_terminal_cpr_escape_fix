@@ -3,7 +3,49 @@
 DEFAULTS = {
     'suppress_buffer_replay': False,
     'filter_osc_color_responses': True,
+    'repaint_on_attach': True,
 }
+
+# repaint_on_attach tuning: after a client attaches and the buffer replay drains,
+# bounce the PTY one row taller and back so the kernel delivers SIGWINCH and the
+# foreground app repaints its full screen - without this, static regions (Claude
+# Code status line, input box) stay missing on the fresh client because the
+# replay window only holds incremental diff frames.
+_BOUNCE_DELAY = 0.4   # let client geometry settle before the bounce
+_BOUNCE_STEP = 0.12   # pause between the grow and the restore write
+_BOUNCE_DEBOUNCE = 5.0  # min seconds between bounces on the same terminal
+
+
+def _make_winsize_bounce(term, schedule):
+    """Return a function that nudges a PTY one row taller and back.
+
+    Each size change makes the kernel send SIGWINCH to the foreground process
+    group, which makes TUI apps (Claude Code, vim, htop) repaint their full
+    screen. The restore write is guarded: it only runs if the size is still the
+    bounced one, so a real client resize racing the bounce is never clobbered.
+    `schedule(delay, fn)` abstracts the IOLoop so the logic stays testable.
+
+    Known limitation: the guard treats any size equal to the bounced size as
+    bounce-written, so a real client resize to exactly rows+1 within the step
+    window is reverted and the PTY sits one row short until the next resize
+    event self-heals it.
+    """
+    def bounce():
+        try:
+            rows, cols = term.getwinsize()
+            term.setwinsize(rows + 1, cols)
+        except Exception:
+            return
+
+        def restore():
+            try:
+                if term.getwinsize() == (rows + 1, cols):
+                    term.setwinsize(rows, cols)
+            except Exception:
+                pass
+
+        schedule(_BOUNCE_STEP, restore)
+    return bounce
 try:
     from ._version import __version__
 except ImportError:
@@ -89,19 +131,39 @@ def _load_jupyter_server_extension(server_app):
 
         patches = ['CPR filter']
 
-        if DEFAULTS['suppress_buffer_replay']:
+        if DEFAULTS['suppress_buffer_replay'] or DEFAULTS['repaint_on_attach']:
+            from tornado.ioloop import IOLoop
+
             _original_open = TermSocket.open
+            _last_bounce = {}  # terminal name -> monotonic time of last bounce
 
-            def _no_replay_open(self, url_component=None):
-                self.on_pty_read = lambda text: None
+            def _patched_open(self, url_component=None):
+                if DEFAULTS['suppress_buffer_replay']:
+                    self.on_pty_read = lambda text: None
                 _original_open(self, url_component)
-                try:
-                    del self.on_pty_read
-                except AttributeError:
-                    pass
+                if DEFAULTS['suppress_buffer_replay']:
+                    try:
+                        del self.on_pty_read
+                    except AttributeError:
+                        pass
+                if DEFAULTS['repaint_on_attach']:
+                    key = self.term_name
+                    now = time.monotonic()
+                    if now - _last_bounce.get(key, -_BOUNCE_DEBOUNCE) >= _BOUNCE_DEBOUNCE:
+                        # entries aged past the debounce window are inert; prune in place
+                        for stale in [k for k, ts in _last_bounce.items() if now - ts >= _BOUNCE_DEBOUNCE]:
+                            del _last_bounce[stale]
+                        _last_bounce[key] = now
+                        IOLoop.current().call_later(
+                            _BOUNCE_DELAY,
+                            _make_winsize_bounce(self.terminal.ptyproc, IOLoop.current().call_later)
+                        )
 
-            TermSocket.open = _no_replay_open
-            patches.append('buffer replay suppression')
+            TermSocket.open = _patched_open
+            if DEFAULTS['suppress_buffer_replay']:
+                patches.append('buffer replay suppression')
+            if DEFAULTS['repaint_on_attach']:
+                patches.append('repaint on attach')
 
         server_app.log.info(
             "jupyterlab_terminal_cpr_escape_fix: Patched TermSocket — %s",
