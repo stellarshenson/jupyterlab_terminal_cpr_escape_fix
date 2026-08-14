@@ -2,6 +2,12 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.14] - 2026-08-14
+
+### Changed
+
+- Documentation-only release: changelog history seeded and the repaint-on-attach investigation recorded in the journal; no change to the published extension code
+
 ## [1.0.13] - 2026-08-14
 
 ### Added
