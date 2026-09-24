@@ -14,6 +14,8 @@ jupyterlab_terminal_cpr_escape_fix/_version.py
 # Integration tests
 ui-tests/test-results/
 ui-tests/playwright-report/
+ui-tests/.tmp-runtime-*/
+ui-tests/experiments/
 
 # Created by https://www.gitignore.io/api/python
 # Edit at https://www.gitignore.io/?templates=python
@@ -137,3 +139,6 @@ uv.lock
 # graphify knowledge-graph artefacts
 tmp/
 graphify-out/
+
+# local paste screenshots (may show client paths)
+paste-*.png

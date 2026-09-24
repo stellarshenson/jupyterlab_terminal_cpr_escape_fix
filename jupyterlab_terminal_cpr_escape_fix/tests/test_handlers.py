@@ -315,6 +315,26 @@ class TestSequenceComplement:
         result, counts, _ = filter_terminal_responses(text)
         assert result == text
 
+    def test_preserves_osc4_query_bel(self):
+        """OSC 4 palette QUERY (index;?) - the ? follows the index, not the 4."""
+        text = '\x1b]4;1;?\x07'
+        result, counts, _ = filter_terminal_responses(text)
+        assert result == text
+        assert counts['osc'] == 0
+
+    def test_preserves_osc4_query_st(self):
+        text = '\x1b]4;1;?\x1b\\'
+        result, counts, _ = filter_terminal_responses(text)
+        assert result == text
+        assert counts['osc'] == 0
+
+    def test_filters_osc4_response_next_to_osc4_query(self):
+        """OSC 4 palette response is still filtered; the query beside it stays."""
+        query = '\x1b]4;1;?\x07'
+        result, counts, _ = filter_terminal_responses(query + '\x1b]4;1;rgb:ffff/0000/0000\x1b\\')
+        assert result == query
+        assert counts['osc'] == 1
+
     def test_preserves_da2_query(self):
         """DA2 QUERY (ESC[>c or ESC[>0c) - must pass through to terminal."""
         assert filter_terminal_responses('\x1b[>c')[0] == '\x1b[>c'
@@ -724,3 +744,149 @@ class TestWinsizeBounce:
         finally:
             TermSocket.open = orig_open
             TermSocket.on_pty_read = orig_read
+
+
+class TestReplayQueryStrip:
+    """Tests for removing terminal queries from the TermSocket.open buffer replay."""
+
+    # every query form xterm.js answers when it parses the replay
+    QUERIES = {
+        'osc4_bel': '\x1b]4;1;?\x07',
+        'osc4_st': '\x1b]4;1;?\x1b\\',
+        'osc10_bel': '\x1b]10;?\x07',
+        'osc10_st': '\x1b]10;?\x1b\\',
+        'osc11_bel': '\x1b]11;?\x07',
+        'osc11_st': '\x1b]11;?\x1b\\',
+        'osc12_bel': '\x1b]12;?\x07',
+        'osc12_st': '\x1b]12;?\x1b\\',
+        'osc4_multi': '\x1b]4;1;?;2;?\x07',
+        'osc10_multi': '\x1b]10;?;?\x1b\\',
+        'da1_c': '\x1b[c',
+        'da1_0c': '\x1b[0c',
+        'da2_gt_c': '\x1b[>c',
+        'da2_gt_0c': '\x1b[>0c',
+        'dsr_5n': '\x1b[5n',
+        'cpr_6n': '\x1b[6n',
+        'decxcpr_q6n': '\x1b[?6n',
+        'decrqm_private': '\x1b[?2004$p',
+        'decrqm_ansi': '\x1b[4$p',
+        'decrqss_qp': '\x1bP$q"p\x1b\\',
+        'decrqss_m': '\x1bP$qm\x1b\\',
+    }
+
+    def _attach(self, chunks, live=(), **toggles):
+        """Drive the real loader over the real TermSocket.open: attach a socket
+        whose terminal holds `chunks` in read_buffer, then feed `live` to the
+        socket as PTY output. Returns the text of every stdout frame sent."""
+        import json
+        import logging
+        from collections import deque
+        from unittest import mock
+        import tornado.ioloop
+        import jupyterlab_terminal_cpr_escape_fix as ext
+        from jupyter_server_terminals.handlers import TermSocket
+
+        class FakeTerminal:
+            def __init__(self):
+                self.clients = []
+                self.read_buffer = deque(chunks, maxlen=1000)
+                self.ptyproc = None
+
+        class FakeTermManager:
+            def get_terminal(self, name):
+                return FakeTerminal()
+
+        class FakeLoop:
+            def call_later(self, delay, fn, *args):
+                pass
+
+        class Sock(TermSocket):
+            """Real TermSocket methods; no tornado request, frames captured."""
+            ping_interval = 0
+            request = mock.MagicMock(path='/terminals/websocket/8')
+
+            def __init__(self):
+                self.term_manager = FakeTermManager()
+                self._logger = logging.getLogger(__name__)
+                self._enable_output_logging = False
+                self.frames = []
+
+            def write_message(self, message, binary=False):
+                self.frames.append(json.loads(message))
+
+        orig_open = TermSocket.open
+        orig_read = TermSocket.on_pty_read
+        try:
+            with mock.patch.dict(ext.DEFAULTS, toggles), \
+                    mock.patch.object(tornado.ioloop.IOLoop, 'current', return_value=FakeLoop()):
+                ext._load_jupyter_server_extension(mock.MagicMock())
+                sock = Sock()
+                TermSocket.open(sock, '8')
+                for text in live:
+                    sock.on_pty_read(text)
+        finally:
+            TermSocket.open = orig_open
+            TermSocket.on_pty_read = orig_read
+        return [text for kind, text in sock.frames if kind == 'stdout']
+
+    @pytest.mark.parametrize('query', list(QUERIES.values()), ids=list(QUERIES))
+    def test_replay_query_removed(self, query):
+        assert self._attach(['$ ls\r\n', query, 'out\r\n']) == ['$ ls\r\nout\r\n']
+
+    def test_strip_keeps_responses(self):
+        """Responses to the stripped queries are never taken for queries."""
+        from jupyterlab_terminal_cpr_escape_fix.handlers import strip_replay_queries
+
+        for response in (
+            '\x1b[?1;2c', '\x1b[>0;276;0c', '\x1b[0n', '\x1b[12;1R', '\x1b[?12;1R',
+            '\x1b[?2004;2$y', '\x1b[4;2$y', '\x1bP1$r0m\x1b\\', '\x1bP1$r61;1"p\x1b\\',
+            '\x1b]11;rgb:2525/2b2b/3232\x1b\\', '\x1b]4;1;rgb:ffff/0000/0000\x1b\\',
+        ):
+            text = response + '$ '
+            assert strip_replay_queries(text) == text, repr(response)
+
+    def test_strip_removes_only_query_bytes(self):
+        """Text, SGR, cursor moves, OSC 0/7/8/52/133, responses and the queries
+        xterm.js does not answer (XTVERSION, XTWINOPS, kitty) are kept."""
+        from jupyterlab_terminal_cpr_escape_fix.handlers import strip_replay_queries
+
+        kept = [
+            'plain text\r\n\x1b[32mgreen\x1b[0m\x1b[5A\x1b[10;20H\x1b[K',
+            '\x1b]0;title\x07\x1b]7;file:///home/user\x07\x1b]8;;https://example.com\x07link\x1b]8;;\x07',
+            '\x1b]52;c;SGVsbG8=\x07\x1b]133;A\x07\x1b[?1;2c\x1b]11;rgb:2525/2b2b/3232\x1b\\',
+            '\x1b[>0q\x1b[14t\x1b[18t\x1b[?u$ ',
+        ]
+        queries = ['\x1b]11;?\x1b\\', '\x1b[c', '\x1bP$qm\x1b\\']
+        text = kept[0] + queries[0] + kept[1] + queries[1] + kept[2] + queries[2] + kept[3]
+        assert strip_replay_queries(text) == ''.join(kept)
+
+    def test_query_tail_at_replay_start_kept(self):
+        """The deque can drop the head of a query; the tail left at the start
+        of the replay passes unchanged while a whole query later is removed."""
+        for tail in (';?\x1b\\', '4;1;?\x07', '$qm\x1b\\'):
+            assert self._attach([tail + 'text', '\x1b[c', 'more']) == [tail + 'textmore']
+
+    def test_trailing_queries_kept(self):
+        """Queries with nothing printed after them may still be awaited."""
+        assert self._attach(['$ ', '\x1b[c']) == ['$ \x1b[c']
+        assert self._attach(['$ ', '\x1b]11;?\x07', '\x1b[c']) == ['$ \x1b]11;?\x07\x1b[c']
+        assert self._attach(['\x1b[c', '$ ']) == ['$ ']
+        assert self._attach(['\x1b[c', '$ ', '\x1b[c']) == ['$ \x1b[c']
+
+    def test_live_query_after_open_unchanged(self):
+        """The same bytes are stripped from the replay and reach the client
+        byte for byte as live output after open."""
+        text = '\x1b]11;?\x1b\\$ '
+        assert self._attach([text], live=[text, '\x1b[6n']) == ['$ ', text, '\x1b[6n']
+
+    def test_strip_toggle_and_suppress_precedence(self):
+        """On by default, also with repaint off; off sends the replay unchanged;
+        suppress_buffer_replay wins over it."""
+        import jupyterlab_terminal_cpr_escape_fix as ext
+
+        chunks = ['a', '\x1b[c', 'b']
+        assert ext.DEFAULTS['strip_replay_queries'] is True
+        assert self._attach(chunks) == ['ab']
+        assert self._attach(chunks, repaint_on_attach=False) == ['ab']
+        assert self._attach(chunks, strip_replay_queries=False) == ['a\x1b[cb']
+        assert self._attach(chunks, suppress_buffer_replay=True) == []

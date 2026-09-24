@@ -2,6 +2,24 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.15] - 2026-09-24
+
+### Added
+
+- Replay query stripping - terminal queries (OSC 4/10/11/12 colour queries including chained forms, DA1, DA2, `ESC[5n`, `ESC[6n`, `ESC[?6n`, DECRQM, DECRQSS) are removed from the buffer replay terminado sends on attach, so a page reload or reconnect no longer makes the browser answer old queries into the shell; queries at the very end of the replay are kept and live output is untouched
+- `DEFAULTS['strip_replay_queries']` toggle (default on); `suppress_buffer_replay` takes precedence
+- Galata regression spec `ui-tests/tests/replay-queries.spec.ts` counting reply frames after drops, reconnects and reloads, runnable with fish or bash
+
+### Changed
+
+- Galata harness moved to galata 5.6.3 with a configurable test port (`JUPYTER_TEST_PORT`), the working-tree package on `PYTHONPATH`, and an optional terminal frame watch
+- Acceptance criteria and defects are tracked with pm-tools in `docs/acc-crit.md` and `docs/defects.md`; observed effects moved to `docs/observed-effects.md`
+- README states the proven cause of the replayed replies
+
+### Fixed
+
+- The output filter deleted the live OSC 4 palette query `ESC]4;n;?`, so programs asking for palette colours waited for their timeout
+
 ## [1.0.14] - 2026-08-14
 
 ### Changed

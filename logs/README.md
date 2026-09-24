@@ -9,3 +9,6 @@ output here per workspace policy.
 - `terminal-signal-recorder.log` - progress log of the detached WebSocket signal
   recorder probing terminal/status-line disruption on window refresh
   (frames data in `/tmp/wsrecorder/`)
+- `ui-tests-<run>.log` - Playwright/Galata run output of `ui-tests`, one file per run
+- `pytest-<run>.log` - pytest run output of the server extension tests
+- `lint-<run>.log` - `jlpm run lint:check` output

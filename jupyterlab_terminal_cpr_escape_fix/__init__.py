@@ -4,6 +4,7 @@ DEFAULTS = {
     'suppress_buffer_replay': False,
     'filter_osc_color_responses': True,
     'repaint_on_attach': True,
+    'strip_replay_queries': True,
 }
 
 # repaint_on_attach tuning: after a client attaches and the buffer replay drains,
@@ -79,7 +80,7 @@ def _load_jupyter_server_extension(server_app):
     server_app: jupyterlab.labapp.LabApp
         JupyterLab application instance
     """
-    from .handlers import filter_terminal_responses, FILTER_PATTERNS
+    from .handlers import filter_terminal_responses, FILTER_PATTERNS, strip_replay_queries
 
     # bare_osc is in FILTER_PATTERNS by default; drop it when the toggle is off
     # so the bare OSC color-response filter can be disabled without code change.
@@ -131,7 +132,7 @@ def _load_jupyter_server_extension(server_app):
 
         patches = ['CPR filter']
 
-        if DEFAULTS['suppress_buffer_replay'] or DEFAULTS['repaint_on_attach']:
+        if DEFAULTS['suppress_buffer_replay'] or DEFAULTS['repaint_on_attach'] or DEFAULTS['strip_replay_queries']:
             from tornado.ioloop import IOLoop
 
             _original_open = TermSocket.open
@@ -140,8 +141,11 @@ def _load_jupyter_server_extension(server_app):
             def _patched_open(self, url_component=None):
                 if DEFAULTS['suppress_buffer_replay']:
                     self.on_pty_read = lambda text: None
+                elif DEFAULTS['strip_replay_queries']:
+                    # the replay still goes through the response filter on the class
+                    self.on_pty_read = lambda text: type(self).on_pty_read(self, strip_replay_queries(text))
                 _original_open(self, url_component)
-                if DEFAULTS['suppress_buffer_replay']:
+                if DEFAULTS['suppress_buffer_replay'] or DEFAULTS['strip_replay_queries']:
                     try:
                         del self.on_pty_read
                     except AttributeError:
@@ -162,6 +166,8 @@ def _load_jupyter_server_extension(server_app):
             TermSocket.open = _patched_open
             if DEFAULTS['suppress_buffer_replay']:
                 patches.append('buffer replay suppression')
+            elif DEFAULTS['strip_replay_queries']:
+                patches.append('replay query stripping')
             if DEFAULTS['repaint_on_attach']:
                 patches.append('repaint on attach')
 

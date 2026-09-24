@@ -18,7 +18,7 @@ Fix the JupyterLab terminado issue where returning to an idle terminal causes cu
 
 ## How it works
 
-When a JupyterLab terminal sits idle, the shell (especially fish) periodically queries terminal capabilities. These queries accumulate in terminado's buffer. On reconnect, the buffer drains and the responses appear as literal text because xterm.js can't process them fast enough.
+When a JupyterLab terminal sits idle, the shell (especially fish) periodically queries terminal capabilities. These queries accumulate in terminado's buffer. On reconnect, terminado replays that buffer, xterm.js answers the old queries again, and the shell inserts the answers as literal text.
 
 This extension patches `TermSocket.on_pty_read()` server-side to filter terminal query responses before they reach the browser. It handles both ESC-prefixed sequences and bare remnants where fish shell has stripped the ESC byte.
 
@@ -43,6 +43,15 @@ This extension patches `TermSocket.on_pty_read()` server-side to filter terminal
 - The kernel delivers SIGWINCH, so the foreground app (Claude Code, vim, htop) repaints its full screen
 - Without it, a refreshed browser shows a torn screen: the replay holds only incremental diff frames, so static regions (status line, input box) are never delivered and never self-heal
 - Toggle: `DEFAULTS['repaint_on_attach']` in `__init__.py` (default on), debounced 5s per terminal
+
+**Replay query stripping** (no replies on reconnect):
+
+On attach, terminado replays the terminal's buffered output and xterm.js answers every query in it as if it were live, so the shell receives the answers as typed text. The extension removes those queries from the replay only.
+
+- Stripped: OSC 4/10/11/12 color queries, DA/DA2 queries, `ESC[5n`, `ESC[6n`, `ESC[?6n`, DECRQM, DECRQSS
+- Queries at the very end of the replay are kept, because the program that sent them may still wait for the answer
+- Live output after the attach passes every query unchanged
+- Toggle: `DEFAULTS['strip_replay_queries']` in `__init__.py` (default on); `suppress_buffer_replay` takes precedence
 
 ## Requirements
 

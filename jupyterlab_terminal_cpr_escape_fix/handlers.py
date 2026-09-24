@@ -15,12 +15,14 @@ import re
 # DA response:  ESC[?p1;p2;...c (requires params after ?)
 # DA2 response: ESC[>p1;p2;p3c (requires semicolon-separated params; bare ESC[>c is a query)
 # DECRPM:       ESC[?mode;value$y
-# OSC response: ESC]N;rgb:... (queries use ESC]N;? which we exclude)
+# OSC:          every ESC]N;... and ESC]4;n;... payload (N = 10, 11, 12) not starting
+#               with ?, so colour set commands (ESC]11;#282828 BEL, ESC]4;1;rgb:..ST)
+#               are removed as well as responses; queries ESC]N;? and ESC]4;n;? are kept
 ESC_CPR = re.compile(r'\x1b\[\d+;\d+R')
 ESC_DA = re.compile(r'\x1b\[\?\d+[\d;]*c')
 ESC_DA2 = re.compile(r'\x1b\[>\d+;\d+[\d;]*c')
 ESC_DECRPM = re.compile(r'\x1b\[\??\d+;\d+\$y')
-ESC_OSC = re.compile(r'\x1b\](?:4|10|11|12);(?!\?)[^\x07\x1b]*(?:\x07|\x1b\\)')
+ESC_OSC = re.compile(r'\x1b\](?:4;\d+|10|11|12);(?!\?)[^\x07\x1b]*(?:\x07|\x1b\\)')
 
 # Patterns WITHOUT ESC prefix (bare remnants after shell strips ESC)
 # Fish shell receives ESC[row;colR, strips ESC, outputs [row;colR
@@ -51,6 +53,24 @@ FILTER_PATTERNS = [
     ('bare_osc', BARE_OSC),
 ]
 
+# Terminal QUERY sequences that xterm.js answers. Applied only to the buffer
+# replay of TermSocket.open (strip_replay_queries), never to live output: the
+# client parses the replay as live output and answers every query in it, and
+# the shell reads those answers as typed text.
+# OSC color:  ESC]4;n;?  ESC]10;?  ESC]11;?  ESC]12;?  (BEL or ST), and the
+#             chained forms ESC]4;n;?;m;?  ESC]10;?;?
+# DA / DA2:   ESC[c  ESC[0c  ESC[>c  ESC[>0c
+# DSR / CPR:  ESC[5n  ESC[6n  ESC[?6n
+# DECRQM:     ESC[?mode$p  ESC[mode$p
+# DECRQSS:    ESC P $q text ST
+REPLAY_QUERY = re.compile(
+    r'\x1b\](?:4(?:;\d+;\?)+|(?:10|11|12)(?:;\?)+)(?:\x07|\x1b\\)'
+    r'|\x1b\[>?0?c'
+    r'|\x1b\[(?:5|6|\?6)n'
+    r'|\x1b\[\??\d+\$p'
+    r'|\x1bP\$q[^\x1b]*\x1b\\'
+)
+
 
 def filter_terminal_responses(text: str) -> tuple[str, dict[str, int], list[str]]:
     """Filter terminal query responses from output.
@@ -73,6 +93,20 @@ def filter_terminal_responses(text: str) -> tuple[str, dict[str, int], list[str]
             result = pattern.sub('', result)
 
     return result, counts, matched
+
+
+def strip_replay_queries(text: str) -> str:
+    """Remove terminal queries from a buffer replay.
+
+    A run of queries that ends the text is kept: nothing was printed after
+    it, so the program that sent it may still be waiting for the answer.
+    """
+    keep_from = len(text)
+    for match in reversed(list(REPLAY_QUERY.finditer(text))):
+        if match.end() != keep_from:
+            break
+        keep_from = match.start()
+    return REPLAY_QUERY.sub('', text[:keep_from]) + text[keep_from:]
 
 
 def debug_escape_sequences(text: str) -> list[str]:

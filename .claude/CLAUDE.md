@@ -45,7 +45,7 @@ This extension provides both frontend (TypeScript) and server-side (Python) comp
 
 ## Observed Effects Logging
 
-**MANDATORY**: Record every observed filter effect in `docs/ACCEPTANCE_CRITERIA.md`
+**MANDATORY**: Record every observed filter effect in `docs/observed-effects.md`
 under the "Observed effects" section, keyed by commit id and date/time, to allow
 back-checking of all desired effects and side effects against the exact code state.
 

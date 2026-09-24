@@ -4,12 +4,12 @@
   "description": "JupyterLab jupyterlab_terminal_cpr_escape_fix Integration Tests",
   "private": true,
   "scripts": {
-    "start": "jupyter lab --config jupyter_server_test_config.py --port 8899 --no-browser",
+    "start": "jupyter lab --config jupyter_server_test_config.py",
     "test": "jlpm playwright test",
     "test:update": "jlpm playwright test --update-snapshots"
   },
   "devDependencies": {
-    "@jupyterlab/galata": "^5.0.5",
-    "@playwright/test": "^1.37.0"
+    "@jupyterlab/galata": "^5.6.3",
+    "@playwright/test": "^1.62.0"
   }
 }

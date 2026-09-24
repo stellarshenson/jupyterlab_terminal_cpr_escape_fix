@@ -4,3 +4,5 @@ node_modules
 **/package.json
 !/package.json
 jupyterlab_terminal_cpr_escape_fix
+docs/acc-crit.md
+docs/defects.md
