@@ -2,6 +2,12 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.20] - 2026-10-12
+
+### Changed
+
+- No change in code, tests or documents since 1.0.19; this version publishes the same content again
+
 ## [1.0.19] - 2026-10-12
 
 ### Added

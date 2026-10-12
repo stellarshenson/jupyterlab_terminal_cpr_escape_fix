@@ -108,3 +108,6 @@ This journal tracks substantive work on documents, diagrams, and documentation c
 
 35. **Task - Ship clear before replay** (v1.0.19): Released the clear before replay and the column repaint step with its shell guard to npm and PyPI<br>
     **Result**: The owner approved the release after the review ended at SHIP (6 rounds, round 6 with 0 findings) and accepted the goal as met. Trigger for releasing now: the lab container restarted at 19:51 and came back in its image state with build 1.0.18, whose `__init__.py` holds no clear, so a local install cannot reach the lab; only a published version in the image can. The restart also removed `pytest`; the `test` extras were reinstalled by hand because no Makefile target installs them. Gates before publish: pytest 163, jest 11, lint clean; Galata 20 of 20 in fish and 13 of 13 in bash on `a7328d2`. `CHANGELOG.md` gained section 1.0.19. Open after the release: an image with 1.0.19 and a lab restart.
+
+36. **Task [Short] - Release 1.0.20** (v1.0.20): Released 1.0.20 on the owner's release command, with the same content as 1.0.19<br>
+    **Result**: The owner invoked the release command 20 minutes after 1.0.19. The tree was clean and nothing had changed since `b9d6a59`; the command's rule is to release anyway. `CHANGELOG.md` section 1.0.20 states that the content equals 1.0.19.
