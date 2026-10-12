@@ -581,19 +581,21 @@ class TestWinsizeBounce:
 
         return scheduled, schedule
 
-    def test_bounce_grows_then_restores(self):
-        """Bounce writes rows+1, then restores the original size one step later."""
+    def test_bounce_narrows_then_restores(self):
+        """Bounce writes cols-1 (rows unchanged), then restores the original
+        size one step later. A row step is DEF-BOUNCE-14: a row-addressing
+        program loses the line it commits during the step."""
         from jupyterlab_terminal_cpr_escape_fix import _make_winsize_bounce, _BOUNCE_STEP
 
         term = self._fake_term()
         scheduled, schedule = self._fake_schedule()
         _make_winsize_bounce(term, schedule)()
 
-        assert term.calls == [(53, 160)]
+        assert term.calls == [(52, 159)]
         assert len(scheduled) == 1 and scheduled[0][0] == _BOUNCE_STEP
 
         scheduled[0][1]()
-        assert term.calls == [(53, 160), (52, 160)]
+        assert term.calls == [(52, 159), (52, 160)]
         assert term.size == (52, 160)
 
     def test_bounce_restore_guarded_against_racing_resize(self):
@@ -609,6 +611,36 @@ class TestWinsizeBounce:
         scheduled[0][1]()
         assert term.calls == []
         assert term.size == (40, 120)
+
+    def test_bounce_restore_keeps_resize_to_old_bounced_size(self):
+        """A client resize to rows+1 during the step (the size the old row step
+        wrote) is a real resize under the column step and is kept."""
+        from jupyterlab_terminal_cpr_escape_fix import _make_winsize_bounce
+
+        term = self._fake_term()
+        scheduled, schedule = self._fake_schedule()
+        _make_winsize_bounce(term, schedule)()
+
+        term.setwinsize(53, 160)
+        term.calls.clear()
+        scheduled[0][1]()
+        assert term.calls == []
+        assert term.size == (53, 160)
+
+    def test_bounce_restore_reverts_resize_to_bounced_size(self):
+        """Documented limitation: a client resize to exactly (rows, cols-1)
+        during the step is taken for the bounce and reverted."""
+        from jupyterlab_terminal_cpr_escape_fix import _make_winsize_bounce
+
+        term = self._fake_term()
+        scheduled, schedule = self._fake_schedule()
+        _make_winsize_bounce(term, schedule)()
+
+        term.setwinsize(52, 159)  # client resize equal to the bounced size
+        term.calls.clear()
+        scheduled[0][1]()
+        assert term.calls == [(52, 160)]
+        assert term.size == (52, 160)
 
     def test_bounce_noop_when_getwinsize_fails(self):
         """A terminal that cannot report its size is left untouched."""
@@ -626,7 +658,7 @@ class TestWinsizeBounce:
         assert scheduled == []
 
     def test_bounce_noop_when_setwinsize_fails(self):
-        """If the grow write fails, no restore is scheduled."""
+        """If the narrow write fails, no restore is scheduled."""
         from jupyterlab_terminal_cpr_escape_fix import _make_winsize_bounce
 
         class HalfBadTerm:
@@ -687,14 +719,14 @@ class TestWinsizeBounce:
                 ext._load_jupyter_server_extension(mock.MagicMock())
                 TermSocket.open(FakeSock(), '8')
                 assert len(callbacks) == 1, f'expected 1 scheduled bounce, got {len(callbacks)}'
-                callbacks[0]()  # bounce -> grows, schedules restore
+                callbacks[0]()  # bounce -> narrows, schedules restore
                 assert len(callbacks) == 2, f'expected restore scheduled, got {len(callbacks)}'
                 callbacks[1]()  # restore
         finally:
             TermSocket.open = orig_open
             TermSocket.on_pty_read = orig_read
 
-        assert ptyproc.calls == [(53, 160), (52, 160)]
+        assert ptyproc.calls == [(52, 159), (52, 160)]
 
     def test_debounce_and_prune(self):
         """Second attach inside the window is debounced; after aging past it
@@ -744,6 +776,180 @@ class TestWinsizeBounce:
         finally:
             TermSocket.open = orig_open
             TermSocket.on_pty_read = orig_read
+
+    def _foreground(self, comm, children=b'', pgids=None):
+        """Patch the calls _shell_at_prompt makes. The foreground process group
+        of the PTY is 4242. /proc/4242/comm holds the bytes `comm` and
+        /proc/4242/task/4242/children holds the bytes `children`; an exception
+        in place of the bytes is raised by `open`. os.getpgid answers from
+        `pgids` (pid -> process group id, or an exception to raise)."""
+        import contextlib
+        import io
+        import types
+        from unittest import mock
+        import jupyterlab_terminal_cpr_escape_fix as ext
+
+        files = {'/proc/4242/comm': comm, '/proc/4242/task/4242/children': children}
+
+        def fake_open(path, mode='r'):
+            data = files[path]
+            if isinstance(data, Exception):
+                raise data
+            # text mode decodes, as the built-in open does
+            return io.BytesIO(data) if 'b' in mode else io.StringIO(data.decode())
+
+        def fake_getpgid(pid):
+            pgid = (pgids or {})[pid]
+            if isinstance(pgid, Exception):
+                raise pgid
+            return pgid
+
+        @contextlib.contextmanager
+        def patched():
+            with mock.patch('os.tcgetpgrp', return_value=4242) as tcgetpgrp, \
+                    mock.patch.object(ext, 'open', side_effect=fake_open, create=True) as opened, \
+                    mock.patch('os.getpgid', side_effect=fake_getpgid) as getpgid:
+                yield types.SimpleNamespace(tcgetpgrp=tcgetpgrp, open=opened, getpgid=getpgid)
+
+        return patched()
+
+    def test_no_step_while_shell_alone_in_foreground(self):
+        """A shell at its prompt gets no step: the size is not read, not
+        written, and nothing is scheduled. A width step makes its line editor
+        erase the output line above a typed line that fills the width."""
+        from unittest import mock
+        from jupyterlab_terminal_cpr_escape_fix import _make_winsize_bounce
+
+        term = mock.Mock(fd=7)
+        scheduled, schedule = self._fake_schedule()
+        with self._foreground(b'bash\n') as calls:
+            _make_winsize_bounce(term, schedule)()
+
+        calls.tcgetpgrp.assert_called_once_with(7)
+        assert calls.open.call_args_list == [
+            mock.call('/proc/4242/comm', 'rb'),
+            mock.call('/proc/4242/task/4242/children', 'rb'),
+        ]
+        term.getwinsize.assert_not_called()
+        term.setwinsize.assert_not_called()
+        assert scheduled == []
+
+    def test_step_runs_for_shell_with_child_in_its_group(self):
+        """A shell without job control (sh -c, bash <script>) runs its program
+        in its own process group; that program needs the repaint."""
+        from jupyterlab_terminal_cpr_escape_fix import _make_winsize_bounce
+
+        term = self._fake_term()
+        term.fd = 7
+        scheduled, schedule = self._fake_schedule()
+        with self._foreground(b'sh\n', children=b'5001 ', pgids={5001: 4242}):
+            _make_winsize_bounce(term, schedule)()
+
+        assert term.calls == [(52, 159)]
+        assert len(scheduled) == 1
+
+    def test_step_runs_for_non_shell_leader(self):
+        """A program that is not a shell (the job the shell started) is stepped."""
+        from jupyterlab_terminal_cpr_escape_fix import _make_winsize_bounce
+
+        term = self._fake_term()
+        term.fd = 7
+        scheduled, schedule = self._fake_schedule()
+        with self._foreground(b'python3\n'):
+            _make_winsize_bounce(term, schedule)()
+
+        assert term.calls == [(52, 159)]
+        assert len(scheduled) == 1
+
+    def test_step_runs_when_tcgetpgrp_fails(self):
+        """A PTY whose foreground process group cannot be read is stepped."""
+        from unittest import mock
+        from jupyterlab_terminal_cpr_escape_fix import _make_winsize_bounce
+
+        term = self._fake_term()
+        term.fd = 7
+        scheduled, schedule = self._fake_schedule()
+        with mock.patch('os.tcgetpgrp', side_effect=OSError('not a terminal')):
+            _make_winsize_bounce(term, schedule)()
+
+        assert term.calls == [(52, 159)]
+        assert len(scheduled) == 1
+
+    def test_step_runs_for_term_without_fd(self):
+        """A terminal object without `fd` is stepped; no process group is read."""
+        from unittest import mock
+        from jupyterlab_terminal_cpr_escape_fix import _make_winsize_bounce
+
+        term = self._fake_term()
+        scheduled, schedule = self._fake_schedule()
+        with mock.patch('os.tcgetpgrp') as pgrp:
+            _make_winsize_bounce(term, schedule)()
+
+        pgrp.assert_not_called()
+        assert term.calls == [(52, 159)]
+        assert len(scheduled) == 1
+
+    @pytest.mark.parametrize('name', [b'bash', b'sh', b'dash', b'zsh', b'fish', b'ksh', b'tcsh', b'csh'])
+    def test_shell_at_prompt_true_for_shell_alone(self, name):
+        from unittest import mock
+        from jupyterlab_terminal_cpr_escape_fix import _shell_at_prompt
+
+        with self._foreground(name + b'\n'):
+            assert _shell_at_prompt(mock.Mock(fd=7)) is True
+
+    def test_shell_at_prompt_false_with_child_in_its_group(self):
+        from unittest import mock
+        from jupyterlab_terminal_cpr_escape_fix import _shell_at_prompt
+
+        with self._foreground(b'bash\n', children=b'5001 ', pgids={5001: 4242}):
+            assert _shell_at_prompt(mock.Mock(fd=7)) is False
+
+    def test_shell_at_prompt_true_with_child_in_other_group(self):
+        """A background job of an interactive shell has its own process group."""
+        from unittest import mock
+        from jupyterlab_terminal_cpr_escape_fix import _shell_at_prompt
+
+        with self._foreground(b'bash\n', children=b'5001 ', pgids={5001: 5001}):
+            assert _shell_at_prompt(mock.Mock(fd=7)) is True
+
+    def test_shell_at_prompt_false_for_other_name(self):
+        from unittest import mock
+        from jupyterlab_terminal_cpr_escape_fix import _shell_at_prompt
+
+        with self._foreground(b'python3\n'):
+            assert _shell_at_prompt(mock.Mock(fd=7)) is False
+
+    def test_shell_at_prompt_false_for_name_not_utf8(self):
+        """A process name that is not valid UTF-8 raises nothing."""
+        from unittest import mock
+        from jupyterlab_terminal_cpr_escape_fix import _shell_at_prompt
+
+        with self._foreground(b'\xff\xfe\n'):
+            assert _shell_at_prompt(mock.Mock(fd=7)) is False
+
+    def test_shell_at_prompt_false_when_comm_file_missing(self):
+        """The leader has exited, or the system has no /proc."""
+        from unittest import mock
+        from jupyterlab_terminal_cpr_escape_fix import _shell_at_prompt
+
+        with self._foreground(FileNotFoundError('/proc/4242/comm')):
+            assert _shell_at_prompt(mock.Mock(fd=7)) is False
+
+    def test_shell_at_prompt_false_when_children_file_missing(self):
+        """A kernel without /proc/<pid>/task/<pid>/children: the step always runs."""
+        from unittest import mock
+        from jupyterlab_terminal_cpr_escape_fix import _shell_at_prompt
+
+        with self._foreground(b'bash\n', children=FileNotFoundError('/proc/4242/task/4242/children')):
+            assert _shell_at_prompt(mock.Mock(fd=7)) is False
+
+    def test_shell_at_prompt_false_when_child_exited(self):
+        """A child that exits after the children file was read."""
+        from unittest import mock
+        from jupyterlab_terminal_cpr_escape_fix import _shell_at_prompt
+
+        with self._foreground(b'bash\n', children=b'5001 ', pgids={5001: ProcessLookupError(3, 'No such process')}):
+            assert _shell_at_prompt(mock.Mock(fd=7)) is False
 
 
 class TestReplayQueryStrip:
@@ -817,7 +1023,8 @@ class TestReplayQueryStrip:
         orig_open = TermSocket.open
         orig_read = TermSocket.on_pty_read
         try:
-            with mock.patch.dict(ext.DEFAULTS, toggles), \
+            # these tests check the replay itself; clear_before_replay has its own file
+            with mock.patch.dict(ext.DEFAULTS, {'clear_before_replay': False, **toggles}), \
                     mock.patch.object(tornado.ioloop.IOLoop, 'current', return_value=FakeLoop()):
                 ext._load_jupyter_server_extension(mock.MagicMock())
                 sock = Sock()

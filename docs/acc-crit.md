@@ -219,6 +219,7 @@ Toggles live in `DEFAULTS` in `__init__.py` and are internal, not user settings
 Full-screen repaint after a client attaches: the replay holds only diff frames, so a fresh client (window refresh) otherwise misses static regions such as the Claude Code status line and input box, which the live stream never redraws (observed 2026-08-13, `docs/observed-effects.md`)
 
 - [x] `ACC-BOUNCE-31` **Bounce grows then restores** - HIGH; PTY set one row taller, original size restored one step later (`test_bounce_grows_then_restores`)
+  - overridden-by: ACC-BOUNCE-68
   - mechanism: 2026-09-24T13:32:34Z @kj after the replay drains, `_make_winsize_bounce` sets the PTY one row taller and back; each size change makes the kernel send SIGWINCH and the foreground app repaints its full screen
   - evidence: `test_bounce_grows_then_restores` passes (73/73 pytest green at 7cdea85, 2026-09-24)
   - test-tags: UNIT
@@ -270,6 +271,25 @@ Full-screen repaint after a client attaches: the replay holds only diff frames, 
   - log: 2026-09-24T13:33:11Z @kj amended text "with the patch active, a window refresh leaves the Claude Code status line intact (requires `make install` and a server restart to load the patch; the installed copy predates the feature)" -> "with the patch active, a window refresh leaves the Claude Code status line intact"
   - log: 2026-09-24T13:33:14Z @kj installed copy in /opt/conda site-packages is 1.0.14 and has `_make_winsize_bounce`; whether the running lab server loaded it was not checked; still open until a refresh is observed on a patched server
   - log: 2026-10-12T10:29:21Z @kj closed
+- [x] `ACC-BOUNCE-68` **Repaint step costs no line** - HIGH; the repaint step after an attach changes the PTY width by one column, never the row count; a program that addresses rows absolutely and commits a line during the step keeps every committed line and leaves no stale row
+  - evidence: repaint-on-attach.spec.ts test 2 green in fish and bash, 3 of 3 trials; red on the row step (LOG55 missing, 5 LIVE rows, 3 of 3); TestWinsizeBounce 8 of 8, mutation m1 red; E5 0 of 10 damaged; logs/ui-tests-colstep-red-rows-8903.log, logs/verify-bounce-galata-fish-8904.log
+  - related: DEF-BOUNCE-14 - the defect this step removes
+  - overrides: ACC-BOUNCE-31
+  - test: repaint-on-attach.spec.ts test 2: row-addressing stand-in under stress, 3 page reloads, every LOG line once and 4 LIVE rows; TestWinsizeBounce in tests/test_handlers.py
+  - test-tags: FUNCTIONAL, UNIT
+  - mechanism: 2026-10-12T13:30:32Z @kj setwinsize(rows, cols - 1) for 0.12 s then back; a row step made the program address one row below the browser's last row (E4, E5); narrower not wider because a PTY wider than the browser wraps a program that writes to the last column
+  - log: 2026-10-12T13:30:32Z @kj added
+  - log: 2026-10-12T14:04:43Z @kj closed
+- [x] `ACC-BOUNCE-69` **No repaint step for a shell at its prompt** - HIGH; no repaint step while the terminal's foreground process group is one shell alone (bash, sh, dash, zsh, fish, ksh, tcsh, csh); a typed shell line that fills the width keeps the output above it; a shell with a child in its group is stepped; lookup error: step runs
+  - evidence: repaint-on-attach.spec.ts test 3 green in fish and bash, red without the guard (marker count 0, own shell and nested bash); bug-hunter probe 0 of 7 damaged (was 7 of 7); sh -c and bash <script> programs repainted 3 of 3 each; TestWinsizeBounce 28 of 28; logs/review3-fix2-galata-fish-8901.log, logs/review3-fix-red-noguard-bash-8901.log
+  - related: DEF-BOUNCE-17 - the defect this removes; ACC-BOUNCE-68 - the column step it guards
+  - test: repaint-on-attach.spec.ts test 3: top-level shell and nested bash, typed line of cols-1, reconnect, three markers once each; TestWinsizeBounce guard cases
+  - test-tags: FUNCTIONAL, UNIT
+  - mechanism: 2026-10-12T15:44:59Z @kj _shell_at_prompt reads /proc/<tcgetpgrp(fd)>/comm and the leader's children file; a shell at its prompt needs no repaint, and a width step makes its line editor miscount the rows of a line that fills the width; a child in the leader's group means a program run without job control, which needs the repaint
+  - log: 2026-10-12T14:47:28Z @kj added
+  - log: 2026-10-12T15:44:59Z @kj amended title "No repaint step while a shell is in front" -> "No repaint step for a shell at its prompt"; text "the repaint step is skipped when the leader of the terminal's foreground process group is a shell (bash, sh, dash, zsh, fish, ksh, tcsh, csh); a shell prompt with a typed line that fills the width keeps the output above it across an attach; lookup error: the step runs" -> "HIGH; no repaint step while the terminal's foreground process group is one shell alone (bash, sh, dash, zsh, fish, ksh, tcsh, csh); a typed shell line that fills the width keeps the output above it; a shell with a child in its group is stepped; lookup error: step runs"
+  - log: 2026-10-12T15:44:59Z @kj mechanism updated "2026-10-12T14:47:28Z @kj _shell_in_foreground reads /proc/<tcgetpgrp(fd)>/comm; a shell at its prompt needs no repaint because the replay restores its line, and a width step makes its line editor miscount the rows of a line that fills the width" -> "_shell_at_prompt reads /proc/<tcgetpgrp(fd)>/comm and the leader's children file; a shell at its prompt needs no repaint, and a width step makes its line editor miscount the rows of a line that fills the width; a child in the leader's group means a program run without job control, which needs the repaint"; reason: names both conditions of the guard and the reason for each
+  - log: 2026-10-12T15:44:59Z @kj closed
 
 ## Regression protection `SUITE`
 
@@ -413,12 +433,18 @@ A terminal widget sends its size to the PTY and parses PTY output only at its fi
   - test-tags: FUNCTIONAL
   - log: 2026-09-24T14:20:35Z @kj added
   - log: 2026-09-24T14:24:53Z @kj rejected: dropped: frontend fix in JupyterLab @jupyterlab/terminal, not in this extension; see DEF-WIDTH-3
-- [-] `ACC-WIDTH-54` **Reconnect keeps one copy of history** - MEDIUM; the xterm is reset before a reconnect's replay, so its buffer holds the history once and a restarted shell starts on a clean screen
+- [x] `ACC-WIDTH-54` **Reconnect keeps one copy of history** - MEDIUM; the server clears the client's terminal before every replay (switch clear_before_replay), so the buffer holds the history once after a reconnect, and a new shell that attaches before its first output starts on an empty screen
+  - evidence: Galata c: history once after a reconnect, red on cf2b773 (markers [2,2,2,2]); probe P2: lines and cursor identical across a reconnect; restarted shell: clear sent on an empty replay, pytest test_empty_buffer_still_clears, no end-to-end test (client disposes on disconnect)
+  - mechanism: 2026-10-12T11:58:57Z @kj the server puts a clear sequence in front of the replay that TermSocket.open sends (switch clear_before_replay), so the client's kept xterm is emptied before the history is written
   - related: DEF-WIDTH-7 - the defect this removes
-  - test: `research-fish-width.spec.ts` T3 `f-narrow-reconnected` asserting left-prompt rows equal `e-narrow-attached` (16 against 8 today)
+  - test: replay-clear.spec.ts test c: each history marker once after reconnectTerminal; pytest test_empty_buffer_still_clears for the empty replay
   - test-tags: FUNCTIONAL
   - log: 2026-09-24T14:20:35Z @kj added
   - log: 2026-09-24T14:24:53Z @kj rejected: dropped: frontend fix in JupyterLab @jupyterlab/terminal, not in this extension; see DEF-WIDTH-3
+  - log: 2026-10-12T11:58:57Z @kj reopened: reopened: owner ordered a server-side clear before each replay on 2026-10-12; the criterion no longer needs a JupyterLab change
+  - log: 2026-10-12T13:30:53Z @kj closed
+  - log: 2026-10-12T14:46:58Z @kj amended text "the xterm is reset before a reconnect's replay, so its buffer holds the history once and a restarted shell starts on a clean screen" -> "MEDIUM; the server clears the client's terminal before every replay (switch clear_before_replay), so the buffer holds the history once after a reconnect, and a new shell that attaches before its first output starts on an empty screen"
+  - log: 2026-10-12T14:46:58Z @kj edited test "`research-fish-width.spec.ts` T3 `f-narrow-reconnected` asserting left-prompt rows equal `e-narrow-attached` (16 against 8 today)" -> "replay-clear.spec.ts test c: each history marker once after reconnectTerminal; pytest test_empty_buffer_still_clears for the empty replay"
 - [x] `ACC-WIDTH-56` **Setting turns the redraw off** - HIGH; the Settings Editor lists the background-tab redraw under this extension, on by default; with it off a background tab is not refreshed when first shown
   - evidence: Settings Editor lists the checkbox "Redraw background terminals when first shown", ticked by default (`logs/ui-tests-settings-editor-8901.log`); Galata test b: 1 websocket open with the setting off, 2 with it on; jest: nothing held back or refreshed when `isEnabled` is false
   - related: DEF-WIDTH-3 - the fix this switch controls
@@ -434,4 +460,78 @@ A terminal widget sends its size to the PTY and parses PTY output only at its fi
   - mechanism: 2026-10-12T10:36:03Z @kj `holdUntilOpened` counts a stdout message only while `terminal.isVisible` is false
   - log: 2026-10-12T10:36:03Z @kj added
   - log: 2026-10-12T10:43:59Z @kj closed
+
+## Clear before replay `CLEAR`
+
+The server empties the client's terminal before each history replay
+
+- [x] `ACC-CLEAR-58` **Replay starts on an empty terminal** - HIGH; the replay that TermSocket.open sends starts with cursor home, erase screen and erase scrollback; the replayed bytes after it are unchanged and the response filter leaves the prefix intact
+  - evidence: pytest test_prefix_present_replay_bytes_unchanged, test_response_filter_leaves_prefix_intact, test_empty_buffer_still_clears; Galata first-frame test: replay frame starts ESC[H ESC[2J ESC[3J; mutations m1, m3, m10 red; logs/pytest-fixlist.log, logs/ui-tests-fixlist-fish-8901.log
+  - test: pytest for clear_before_replay and for the patched open with a fake socket
+  - test-tags: UNIT
+  - mechanism: 2026-10-12T11:58:57Z @kj pure function clear_before_replay(text) in its own module, applied to the replay only, after query stripping
+  - log: 2026-10-12T11:58:57Z @kj added
+  - log: 2026-10-12T13:30:42Z @kj closed
+- [x] `ACC-CLEAR-59` **Edge: alternate screen inside the replay** - HIGH; first alternate-screen switch in the replay is an entry: the prefix leaves the alternate screen and clears the normal one; first switch is a leave: the prefix clears the normal screen, then enters the alternate screen
+  - evidence: pytest entry and leave cases for 47, 1047, 1049 and parameter lists (m2, m8 red); Galata b (entry) and f (leave: no alternate-screen row on the normal screen after exit and reconnect) green in fish and bash, red with the switch off; logs/ui-tests-canary-clear-fixlist-8903.log
+  - test: pytest, one case per branch, modes 47, 1047, 1049 and a parameter list
+  - test-tags: UNIT
+  - log: 2026-10-12T11:58:57Z @kj added
+  - log: 2026-10-12T13:30:42Z @kj closed
+- [x] `ACC-CLEAR-60` **Edge: alternate screen older than the replay** - HIGH; a replay with no alternate-screen switch does not change which screen the client shows; a full-screen program whose start is older than the replay stays on the alternate screen across a reconnect
+  - evidence: pytest test_no_switch_clears_only; Galata d: buffer alternate after 1600 chunks and a reconnect, replay holds no ESC[?1049h; m2 and m3 red; content older than the replay returns through repaint_on_attach (repaint-on-attach.spec.ts test 1); logs/ui-tests-fixlist-fish-8901.log
+  - test: pytest for the branch; Galata: stand-in in alt mode, more than 1000 chunks, plain reconnect, buffer type still alternate
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-10-12T11:58:57Z @kj added
+  - log: 2026-10-12T13:30:43Z @kj closed
+- [x] `ACC-CLEAR-61` **Input modes survive a reconnect** - HIGH; the prefix resets no terminal mode: bracketed paste and mouse reporting that a program set before a reconnect are still set after it
+  - evidence: Galata d: mouse vt200 and bracketedPasteMode true after the reconnect with no mode in the replay; m3 (ESC c) turns d red; pytest test_prefix_resets_no_input_mode; logs/ui-tests-fixlist-fish-8901.log, logs/ui-tests-verify-clear-m3-8904.log
+  - test: Galata: set modes 2004 and 1000, plain reconnect, read term.modes; pytest: the prefix is one of three fixed strings
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-10-12T11:58:57Z @kj added
+  - log: 2026-10-12T13:30:43Z @kj closed
+- [x] `ACC-CLEAR-62` **Redraw first row clean** - MEDIUM; after the background-tab redraw the first buffer row is the first replayed line, not the old cursor row
+  - evidence: Galata a green in fish and bash, red on cf2b773 in fish (row 0 joined to prompt text) and in the canary run; in bash a passes without the fix, stated in the spec header; logs/ui-tests-clear-red-8901.log, logs/ui-tests-canary-clear-fixlist-8903.log
+  - related: DEF-WIDTH-12
+  - test: Galata: background terminal, reload, show the tab, compare buffer row 0 with the first line of the history
+  - test-tags: FUNCTIONAL
+  - log: 2026-10-12T11:59:08Z @kj added
+  - log: 2026-10-12T13:30:43Z @kj closed
+- [x] `ACC-CLEAR-63` **History before a full-screen program redrawn** - MEDIUM; in a background tab whose program entered the alternate screen within the replay, the lines printed before that program have the fitted layout after the redraw and after the program exits
+  - evidence: Galata b green in fish and bash, red on cf2b773 (markers [2,2,1,1]) and with the switch off; logs/ui-tests-clear-red-8901.log, logs/ui-tests-canary-clear-fixlist-8903.log
+  - related: DEF-WIDTH-13
+  - test: Galata: marker block, stand-in in alt mode, reload in background, show the tab, exit the stand-in, markers once per row
+  - test-tags: FUNCTIONAL
+  - log: 2026-10-12T11:59:08Z @kj added
+  - log: 2026-10-12T13:30:43Z @kj closed
+- [x] `ACC-CLEAR-64` **Toggle: clear_before_replay** - MEDIUM; DEFAULTS['clear_before_replay'] True (default) puts the prefix in front of the replay; False sends the replay as before; suppress_buffer_replay still takes precedence
+  - evidence: pytest test_default_is_on, test_switch_off_replay_is_unchanged, test_nothing_sent_under_suppress_buffer_replay, test_empty_buffer_switch_off_sends_nothing; Galata first-frame test with the switch off: no prefix; logs/pytest-fixlist.log, logs/ui-tests-clear-off-skip-8901.log
+  - test: pytest for both values; Galata run with CPR_FIX_DEFAULTS clear_before_replay false: first stdout frame after open has no prefix
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-10-12T11:59:08Z @kj added
+  - log: 2026-10-12T13:30:43Z @kj closed
+
+## Monkey patch ledger `PATCH`
+
+Every replaced upstream attribute is listed, switchable and removable
+
+- [x] `ACC-PATCH-65` **Ledger lists every monkey patch** - HIGH; README section and docs/monkeypatches.md list each replaced upstream attribute and each feature on it: target, switch, canary test, retire condition, removal steps, upstream versions last checked
+  - evidence: README table MP-1 to MP-6 and docs/monkeypatches.md name every assignment site (TermSocket.on_pty_read, TermSocket.open, instance on_pty_read, session.send in src/unopenedTerminal.ts) with switch, canary, retire condition, removal steps and served versions 4.6.4, 7.6.4, xterm 5.5.0; verifier's register errors corrected
+  - test: compare the register with every assignment to TermSocket attributes in the Python package and to session.send in src/
+  - test-tags: MANUAL
+  - log: 2026-10-12T11:59:09Z @kj added
+  - log: 2026-10-12T13:30:53Z @kj closed
+- [x] `ACC-PATCH-66` **Canary shows a patch is still needed** - HIGH; each register entry names a test that fails with the entry's switch off, or states that none exists; a canary that passes with the switch off means upstream no longer needs the patch
+  - evidence: canaries red with the switch off: MP-3 replay-queries tests 2 to 4, MP-4 replay-clear a, b, c, f, MP-5 repaint-on-attach test 1, MP-6 background-terminal test 1 on upstream assertions only; MP-1 and MP-2 state none; logs/ui-tests-canary-*-fixlist-8903.log
+  - test: run each named canary with its switch off; record pass or fail per entry
+  - test-tags: FUNCTIONAL, MANUAL
+  - log: 2026-10-12T11:59:09Z @kj added
+  - log: 2026-10-12T13:30:53Z @kj closed
+- [x] `ACC-PATCH-67` **Clear before replay removable as a unit** - MEDIUM; following the register's removal steps for clear_before_replay on a copy of the package (module, import, call, DEFAULTS key, its tests) leaves the remaining pytest suite green
+  - evidence: removal drill repeated on the final code (tmp/research/review3/removal-drill-r1.py): steps 1 to 4 leave __init__.py and test_handlers.py equal to cf2b773 apart from the repaint step changes (2 hunks, 5 hunks in TestWinsizeBounce), no reference left, pytest 125 of 125; logs/review3-fix2-removal-drill.log
+  - test: removal drill on a scratch copy, then pytest
+  - test-tags: MANUAL
+  - log: 2026-10-12T11:59:09Z @kj added
+  - log: 2026-10-12T13:30:53Z @kj closed
+  - log: 2026-10-12T15:44:59Z @kj edited evidence "removal drill on a scratch copy by implementer and verifier: steps 1 to 4 reproduce HEAD's __init__.py and test_handlers.py exactly, no reference left, pytest 103 of 103; logs/pytest-removal-drill.log, logs/pytest-verify-removal-drill.log" -> "removal drill repeated on the final code (tmp/research/review3/removal-drill-r1.py): steps 1 to 4 leave __init__.py and test_handlers.py equal to cf2b773 apart from the repaint step changes (2 hunks, 5 hunks in TestWinsizeBounce), no reference left, pytest 125 of 125; logs/review3-fix2-removal-drill.log"
 

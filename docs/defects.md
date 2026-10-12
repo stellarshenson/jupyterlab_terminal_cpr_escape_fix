@@ -84,7 +84,8 @@ fish right-prompt rows stack when output rendered for one PTY width is parsed by
   - log: 2026-09-24T14:18:35Z @kj added
   - log: 2026-09-24T14:18:43Z @kj any `fish_right_prompt` stacks, the system prompt script is not the cause (E2 ablation with a `[R]` right prompt)
   - log: 2026-09-24T14:24:52Z @kj rejected: won't fix: replayed output is cursor-positioned for past widths and cannot be re-laid out; DEFAULTS['suppress_buffer_replay'] already exists for users who prefer no history
-- [-] `DEF-WIDTH-7` **Reconnect appends a second copy of history** - MINOR; after a socket drop the xterm shows its history twice, and after a lab restart the new shell's banner starts at the dead shell's cursor; cause: the widget keeps its xterm on reconnect and terminado replays again; owner JupyterLab; fix: reset the xterm before a reconnect's replay; `src/index.ts`
+- [x] `DEF-WIDTH-7` **Reconnect appends a second copy of history** - MINOR; after a socket drop the xterm shows its history twice, and after a lab restart the new shell's banner starts at the dead shell's cursor; cause: the widget keeps its xterm on reconnect and terminado replays again; fixed on the server by the clear before each replay (replay_clear.py)
+  - evidence: fixed by clear before replay: Galata c keeps one copy of history after a reconnect (red on cf2b773); an empty replay also gets the clear so a new shell starts at row 0 (pytest test_empty_buffer_still_clears); logs/ui-tests-fixlist-fish-8901.log
   - related: ACC-WIDTH-54 - the fix criterion
   - repro: drop a fish terminal's socket with code 4000 and let it reconnect; scroll back: history repeated
   - test-tags: FUNCTIONAL
@@ -92,20 +93,29 @@ fish right-prompt rows stack when output rendered for one PTY width is parsed by
   - log: 2026-09-24T14:18:35Z @kj added
   - log: 2026-09-24T14:18:43Z @kj the duplication was first addressed by `suppress_buffer_replay` (journal entry 13), off by default since v1.0.8
   - log: 2026-09-24T14:24:52Z @kj rejected: won't fix here: JupyterLab @jupyterlab/terminal does not reset the xterm on reconnect; report upstream
-- [-] `DEF-WIDTH-12` **Redraw keeps the old cursor row** - MINOR; after the background-tab redraw the first buffer row holds the old cursor row followed by the first replayed line; seen in 2 of 2 S1 runs on build 1.0.16; owner JupyterLab
+  - log: 2026-10-12T11:58:45Z @kj reopened: reopened: the server-side clear before each replay that the owner ordered on 2026-10-12 removes the second copy of history without a JupyterLab change
+  - log: 2026-10-12T13:30:53Z @kj closed
+  - log: 2026-10-12T14:47:02Z @kj amended text "after a socket drop the xterm shows its history twice, and after a lab restart the new shell's banner starts at the dead shell's cursor; cause: the widget keeps its xterm on reconnect and terminado replays again; owner JupyterLab; fix: reset the xterm before a reconnect's replay; `src/index.ts`" -> "MINOR; after a socket drop the xterm shows its history twice, and after a lab restart the new shell's banner starts at the dead shell's cursor; cause: the widget keeps its xterm on reconnect and terminado replays again; fixed on the server by the clear before each replay (replay_clear.py)"
+- [x] `DEF-WIDTH-12` **Redraw keeps the old cursor row** - MINOR; after the background-tab redraw the first buffer row holds the old cursor row followed by the first replayed line; seen in 2 of 2 S1 runs on build 1.0.16; owner JupyterLab
+  - evidence: Galata a: first buffer row is the first replayed line after the background-tab redraw, red on cf2b773 in fish; logs/ui-tests-clear-red-8901.log, logs/ui-tests-fixlist-fish-8901.log
   - related: DEF-WIDTH-3 - the redraw that leaves this row
   - repro: E3 spec, scenario S1: compare buffer row 0 after the tab is shown with row 0 before the reload
   - test-tags: FUNCTIONAL
   - root-cause: 2026-10-12T07:15:49Z @kj JupyterLab `refresh()` calls xterm `clear()`, which keeps the cursor row and column, so the replay continues on that row
   - log: 2026-10-12T07:15:49Z @kj added
   - log: 2026-10-12T07:16:24Z @kj rejected: won't fix: one row at the top of the redrawn history; a cure needs a line-erase prefix on every server replay or the private xterm `reset()`; stated as a limit in the README
-- [-] `DEF-WIDTH-13` **History before an alternate screen keeps 80x24** - MINOR; in a background tab whose program entered the alternate screen within the replayed history, the lines printed before that program keep the 80x24 layout after the redraw; visible once the program exits; 4 changed rows with and without the fix; owner JupyterLab
+  - log: 2026-10-12T11:58:45Z @kj reopened: reopened: owner ruled on 2026-10-12: fix on the server with a clear before each replay, switch clear_before_replay, monkey patch ledger required
+  - log: 2026-10-12T13:30:53Z @kj closed
+- [x] `DEF-WIDTH-13` **History before an alternate screen keeps 80x24** - MINOR; in a background tab whose program entered the alternate screen within the replayed history, the lines printed before that program keep the 80x24 layout after the redraw; visible once the program exits; 4 changed rows with and without the fix; owner JupyterLab
+  - evidence: Galata b: lines before the full-screen program have the fitted layout after the redraw, markers [1,1,1,1], red on cf2b773 with [2,2,1,1]; logs/ui-tests-clear-red-8901.log, logs/ui-tests-fixlist-fish-8901.log
   - related: DEF-WIDTH-3 - the redraw does not reach these rows
   - repro: E3 spec, scenario S3: compare the normal buffer after the program left the alternate screen with the buffer before the reload
   - test-tags: FUNCTIONAL
   - root-cause: 2026-10-12T07:15:49Z @kj `refresh()` clears the active buffer only, and the second replay starts while the alternate buffer is active, so the normal buffer keeps the first parse
   - log: 2026-10-12T07:15:49Z @kj added
   - log: 2026-10-12T07:16:24Z @kj rejected: won't fix: same rows as before the fix; a cure needs the private xterm `reset()`; stated as a limit in the README
+  - log: 2026-10-12T11:58:45Z @kj reopened: reopened: owner ruled on 2026-10-12: fix on the server with a clear before each replay, switch clear_before_replay, monkey patch ledger required
+  - log: 2026-10-12T13:30:53Z @kj closed
 - [-] `DEF-WIDTH-15` **Redraw drops output older than the replay** - MEDIUM; at first show the redraw replaces the terminal's buffer with the server's replay, the last 1000 output chunks; older output received while the tab was hidden is dropped, build 1.0.15 kept it; 1602 chunks while hidden: 2 early marker lines gone, 1612 dots become 1006; setting off keeps it
   - related: DEF-WIDTH-3 - the redraw that replaces the buffer
   - repro: print a marker, put another tab in front, reload, print 1600 chunks, show the tab; spec `horizon.spec.ts` is kept in `tmp/research/fix2/horizon/`, and its two imports resolve only from `ui-tests/tests/`
@@ -169,11 +179,41 @@ Keys xterm.js sends to the shell that the user meant for the browser
 
 Side effects of the PTY size bounce that makes programs repaint after a client attaches
 
-- [-] `DEF-BOUNCE-14` **Bounce interval costs one line** - MINOR; a program that addresses rows absolutely and commits a line while the PTY is one row taller (for 0.12 s, starting 0.4 s after a websocket open) loses that line or leaves one stale row; stand-in: 1 of 3 runs with `repaint_on_attach` on, 0 of 3 with it off; the background-tab redraw adds one such interval at first show
+- [x] `DEF-BOUNCE-14` **Bounce interval costs one line** - MINOR; a program that addresses rows absolutely and commits a line while the PTY is one row taller (for 0.12 s, starting 0.4 s after a websocket open) loses that line or leaves one stale row; stand-in: 1 of 3 runs with `repaint_on_attach` on, 0 of 3 with it off; the background-tab redraw adds one such interval at first show
+  - evidence: fixed by the column step: stand-in under stress keeps every committed line across 3 page reloads (repaint-on-attach.spec.ts test 2), red on the row step 3 of 3; E5 column step 0 of 10 damaged, row step 10 of 10; verifier SHIP; logs/ui-tests-colstep-red-rows-8903.log, logs/verify-bounce-galata-bash-8905.log
   - repro: E3 spec, scenario S2a on build 1.0.16, repeated; compare `side.jsonl` commit times with `setwinsize` events in `server.jsonl`
   - test-tags: FUNCTIONAL
+  - root-cause: 2026-10-12T13:30:32Z @kj a row step changes the row count the PTY reports while the browser keeps its rows, so a line committed at row rows+1 lands on the browser's last row and the redraw after the restore overwrites it; a column step moves no row; E5 in Galata: cols-1 0 of 10 damaged, rows+1 10 of 10
+  - root-cause: 2026-10-12T12:40:24Z @kj a program that draws a committed line while the PTY reports rows+1 addresses one row below the browser's last row; experiment E4: every exposed trial damaged, 11 of 11; no other measured step met all three conditions; tmp/research/e4/REPORT.md
   - root-cause: 2026-10-12T07:15:49Z @kj `_make_winsize_bounce` sets rows + 1 for `_BOUNCE_STEP`; a frame drawn for the taller size lands one row off in the xterm
   - log: 2026-10-12T07:15:49Z @kj added; reason: the text carries the measured rates of both arms and the link to the redraw
   - log: 2026-10-12T07:16:25Z @kj rejected: won't fix: any PTY size change has this interval, and the size must change because Node programs ignore a SIGWINCH without one; `DEFAULTS['repaint_on_attach']` off removes it
   - log: 2026-10-12T08:00:35Z @kj amended text "a program that addresses rows absolutely and commits a line while the PTY is one row taller (0.12 s after a websocket open) loses that line or leaves one stale row; stand-in: 1 of 4 runs with `repaint_on_attach` on, 0 of 3 with it off; the background-tab redraw adds one such interval at first show" -> "MINOR; a program that addresses rows absolutely and commits a line while the PTY is one row taller (for 0.12 s, starting 0.4 s after a websocket open) loses that line or leaves one stale row; stand-in: 1 of 3 runs with `repaint_on_attach` on, 0 of 3 with it off; the background-tab redraw adds one such interval at first show"; reason: the text carries the measured rates of both arms and the link to the redraw
+  - log: 2026-10-12T11:34:57Z @kj reopened: reopened: owner asked on 2026-10-12 for an experiment on other repaint steps (smaller size, shorter step, signal only) before a ruling; experiment E4, outputs in tmp/research/e4/
+  - log: 2026-10-12T13:30:32Z @kj root-cause overridden; reason: names the mechanism and the measured counts of E5
+  - log: 2026-10-12T14:04:43Z @kj closed
+- [x] `DEF-BOUNCE-17` **Column step makes bash erase a line** - MAJOR; with the column step, bash erases one output line above its prompt at every attach when prompt plus typed, not submitted text is k*(cols-1) to k*cols columns wide; 7 of 7 at 103 columns; 0 of 9 with the row step or repaint off; fish 0 of 9
+  - evidence: fixed by _shell_at_prompt: no step while one shell is alone in the foreground group; bug-hunter probe in bash 9 of 9 unchanged, 0 of 7 damaged (logs/review3-fix2-probe-r3-bash-8903.log, was 7 of 7); Galata test 3 red without the guard, green with it in fish and bash
+  - related: DEF-BOUNCE-14 - the row-step defect whose fix introduced this; ACC-BOUNCE-68 - the column step
+  - repro: bash terminal, three echo lines, type letters until prompt plus text is cols-1 wide, reconnect the socket: one echo line is gone; tmp/research/review3/bug-hunter/specs/r3.spec.ts
+  - test-tags: FUNCTIONAL, UNIT
+  - root-cause: 2026-10-12T14:47:13Z @kj the width step makes readline redisplay at cols-1, where a line that fills the width counts as wrapped onto a second row; after the restore readline moves up one row too many and clears the output line above; found by review round 1, logs/review3-bh-bash-default-8903.log
+  - log: 2026-10-12T14:47:13Z @kj added
+  - log: 2026-10-12T15:44:59Z @kj closed
+- [-] `DEF-BOUNCE-18` **Shell-script program gets no repaint step** - MINOR; a full-screen program that is a shell script gets no repaint step while it waits in a builtin; started as `bash <script>` in fish it lost header and footer after a reconnect, 3 of 3 (`logs/review3-ux-confirm-shellscript-8905.log`); commit `cf2b773` redrew it on a PTY; `__init__.py`
+  - related: DEF-BOUNCE-17, ACC-BOUNCE-69 - the guard whose false match this is
+  - repro: fish terminal; run with `bash <script>` a bash script that enters the alternate screen, draws a header once, traps WINCH to redraw, prints 1600 updates and waits in `read`; reconnect; the header is gone
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-10-12T16:25:07Z @kj `_shell_at_prompt` takes a foreground group led by a shell name with no child in the group for a shell at its prompt; a script that waits in a builtin has the same state
+  - log: 2026-10-12T16:25:07Z @kj added
+  - log: 2026-10-12T16:25:19Z @kj rejected: won't fix: a miss of the guard heuristic, stated as a limit in README and MP-5; a fix is one more guard rule, which review round 2 ruled out; removing the guard returns DEF-BOUNCE-17; decided by the Claude session under the owner's standing order, reopen to overrule
+  - log: 2026-10-12T16:50:32Z @kj won't fix confirmed by the owner on 2026-10-12
+- [-] `DEF-BOUNCE-19` **Column step erases a line in a non-shell line editor** - MEDIUM; a line editor outside the eight shell names is still stepped and erases the output line above a typed line of `cols - 1` columns: `python3` 3.14.8 with `PYTHON_BASIC_REPL=1` (GNU readline) 3 of 3 reconnects, default REPL 0 of 3; `__init__.py`
+  - related: DEF-BOUNCE-17, ACC-BOUNCE-69 - the guard that does not cover this editor; DEF-BOUNCE-14 - the row step that the column step replaced
+  - repro: fish terminal; `PYTHON_BASIC_REPL=1 python3`; print three lines; type text until prompt plus text is `cols - 1` columns, do not submit; reconnect; the last printed line is gone
+  - test-tags: FUNCTIONAL
+  - root-cause: 2026-10-12T16:25:07Z @kj the width step makes GNU readline count the typed line as wrapped at `cols - 1` and move up one row too many after the restore; the guard exempts only the names in `_SHELLS`; same expected, not measured, behind `ssh`, `sudo` or `docker exec`
+  - log: 2026-10-12T16:25:07Z @kj added
+  - log: 2026-10-12T16:25:19Z @kj rejected: won't fix: a miss of the guard heuristic, stated as a limit in README and MP-5; a list of all line editors has no end; the row step returns DEF-BOUNCE-14; decided by the Claude session under the owner's standing order, reopen to overrule
+  - log: 2026-10-12T16:50:32Z @kj won't fix confirmed by the owner on 2026-10-12
 

@@ -45,6 +45,17 @@ function blockBytes(): string {
 
 let BLOCK_FILE = '';
 
+// CPR_FIX_REDRAW=off runs the whole file with the setting off: the canary of the
+// frontend patch in docs/monkeypatches.md, where the first test must fail
+if (process.env.CPR_FIX_REDRAW === 'off') {
+  test.use({
+    mockSettings: {
+      ...galata.DEFAULT_SETTINGS,
+      [PLUGIN_ID]: { redrawBackgroundTerminals: false }
+    }
+  });
+}
+
 // the block needs a terminal of more than 120 columns: with galata's default
 // settings a 1600 px viewport gave 103 columns on the developer's workstation
 test.use({ autoGoto: false, viewport: { width: 2400, height: 1000 } });
@@ -245,7 +256,11 @@ test.describe('Background terminal redraw', () => {
     const sizes = sizesSent(watch, name, since);
     expect.soft(sizes.length).toBeGreaterThanOrEqual(1);
     expect.soft(sizes).not.toContainEqual([24, 80]);
-    expect.soft(framesSince(watch, name, 'open', since)).toHaveLength(2);
+    // the second socket is the extension's own refresh, not upstream behaviour:
+    // asserted only with the setting on, so the canary run tests upstream alone
+    if (process.env.CPR_FIX_REDRAW !== 'off') {
+      expect.soft(framesSince(watch, name, 'open', since)).toHaveLength(2);
+    }
   });
 
   test.describe('setting off', () => {

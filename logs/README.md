@@ -15,3 +15,6 @@ output here per workspace policy.
 - `install-<n>.log` - `make install` output
 - `jest-<run>.log` - `make test` output of the frontend unit tests
 - `labextension-<run>.log` - `jupyter labextension list` output
+- `e5-<arm>-<cell>[-bash]-<port>.log`, `e5-queue-*.log` - Galata output of experiment E5 (`tmp/research/e5/`), one file per arm and cell
+- `verify-bounce-<pytest|jest|lint|galata-<shell>|mutations-pytest|probe-<shell>|m6>[-<port>].log` - verifier runs of the column-step and clear-before-replay changes (`tmp/research/bounce-verify/`)
+- `review3-<bh|ux|fix|fix2>-<run>[-<port>].log` - runs of review round 3 and of its fix rounds (`tmp/research/review3/`)
