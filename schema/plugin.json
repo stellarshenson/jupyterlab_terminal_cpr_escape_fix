@@ -1,0 +1,13 @@
+{
+  "title": "Terminal CPR Escape Fix",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "redrawBackgroundTerminals": {
+      "type": "boolean",
+      "title": "Redraw background terminals when first shown",
+      "description": "After a page load, a terminal in a background tab has no real size until its tab is shown. When on, such a terminal sends no size to the server before that and reconnects once when first shown, so its history is drawn again at the real size. Turn off to get JupyterLab's default behaviour.",
+      "default": true
+    }
+  }
+}

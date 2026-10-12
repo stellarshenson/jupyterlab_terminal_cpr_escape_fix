@@ -53,6 +53,16 @@ On attach, terminado replays the terminal's buffered output and xterm.js answers
 - Live output after the attach passes every query unchanged
 - Toggle: `DEFAULTS['strip_replay_queries']` in `__init__.py` (default on); `suppress_buffer_replay` takes precedence
 
+**Background terminal redraw** (history at the real size):
+
+After a page load JupyterLab gives a terminal in a background tab an 80x24 screen until its tab is shown, reports that size to the server and writes the replayed history into it. The frontend part of this extension sends no size to the server before the terminal is opened, so the PTY keeps its real size. When the terminal is first shown it reconnects once and the server replays the history into the fitted terminal.
+
+- Only output that arrives while the tab is hidden leads to a redraw; a terminal that is visible when its output arrives, a new one included, is not reconnected
+- The redraw is one more replay from the server, so it relies on replay query stripping (on by default): with `strip_replay_queries` off, old queries in the history are answered once more when the tab is first shown
+- Limits: the first row of the redrawn history can start with the text that was on the cursor's line before the redraw (usually the prompt), and history printed before a program switched to the alternate screen is not drawn again while that program runs
+- Limit: the redraw replaces what the terminal held with the server's replay, which is the last 1000 output chunks (nothing when `suppress_buffer_replay` is on). Output older than that, received while the tab was in the background, is dropped. With the setting "Redraw background terminals when first shown" off it stays
+- Toggle: the setting "Redraw background terminals when first shown" in the Settings Editor, section "Terminal CPR Escape Fix" (default on)
+
 ## Requirements
 
 - JupyterLab >= 4.0.0

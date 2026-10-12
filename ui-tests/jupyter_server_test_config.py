@@ -10,10 +10,19 @@ import re
 import shlex
 import sys
 import time
+from tempfile import mkdtemp
 
 from jupyterlab.galata import configure_jupyter_server
 
 configure_jupyter_server(c)
+
+# The test server must not write into the developer's own JupyterLab settings.
+c.LabApp.user_settings_dir = mkdtemp(prefix="galata-settings-")
+
+# Where the GalaxaHub message-of-the-day extension is installed it opens a tab at
+# lab start; galata waits for an active Launcher tab, so every test would time out.
+# traitlets ignores the line where the extension is not installed, as in CI.
+c.GalaxaHubMotd.open_on_start = False
 
 # Galata pins port 8888 with port_retries = 0; 8888 is the developer's own lab.
 # `or`, not a get() default: an exported-but-empty value would make int("")

@@ -12,3 +12,6 @@ output here per workspace policy.
 - `ui-tests-<run>.log` - Playwright/Galata run output of `ui-tests`, one file per run
 - `pytest-<run>.log` - pytest run output of the server extension tests
 - `lint-<run>.log` - `jlpm run lint:check` output
+- `install-<n>.log` - `make install` output
+- `jest-<run>.log` - `make test` output of the frontend unit tests
+- `labextension-<run>.log` - `jupyter labextension list` output

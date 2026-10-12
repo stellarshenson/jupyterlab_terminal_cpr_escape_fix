@@ -2,6 +2,25 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.18] - 2026-10-12
+
+### Added
+
+- Background terminal redraw - after a page load a terminal in a background tab sends no size to the server before it is opened, so its PTY keeps its real size, and it reconnects once when first shown, so its history is drawn again at the fitted size instead of the 80x24 layout JupyterLab gives an unopened terminal
+- Setting "Redraw background terminals when first shown" in the Settings Editor, section "Terminal CPR Escape Fix" (default on)
+- Jest unit tests for the frontend module and Galata regression spec `ui-tests/tests/background-terminal.spec.ts`, runnable with fish or bash
+
+### Changed
+
+- Galata test server uses a private settings directory and turns off the startup tab of the GalaxaHub message-of-the-day extension, which had made every Galata test time out
+- `junit.xml` is gitignored and `tmp/` is excluded from ESLint
+- README lists the limits of the redraw: the first row can start with the old cursor line, history printed before an alternate-screen program is not drawn again, and output older than the server's last 1000 chunks is dropped
+
+### Fixed
+
+- After a page reload, programs in a background tab ran at 80 columns until the tab was shown
+- After a page reload, history drawn with cursor movement was laid out for 80 columns in a background tab and stayed so once the tab was shown: stacked prompt rows in fish, stacked frames in Codex
+
 ## [1.0.15] - 2026-09-24
 
 ### Added

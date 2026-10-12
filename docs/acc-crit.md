@@ -261,13 +261,15 @@ Full-screen repaint after a client attaches: the replay holds only diff frames, 
   - test: `pytest -k test_bounce_noop_when_setwinsize_fails`
   - log: 2026-08-13T00:00:00Z @kj implemented (v1.0.12)
   - log: 2026-09-24T13:32:34Z @kj edited importance and test (added) and test-tags (added) and evidence (added)
-- [ ] `ACC-BOUNCE-38` **Live verification** - CRITICAL; with the patch active, a window refresh leaves the Claude Code status line intact
+- [x] `ACC-BOUNCE-38` **Live verification** - CRITICAL; with the patch active, a window refresh leaves the Claude Code status line intact
+  - evidence: owner observed on 2026-10-12 in the running lab (server process started 2026-10-09, package 1.0.15 installed): after a browser reload Claude Code's status line and input box are drawn again
   - test-tags: MANUAL
   - test: on a server running the patch, start Claude Code in a terminal, reload the browser tab, assert the status line and input box are drawn again
   - log: 2026-08-13T00:00:00Z @kj criterion added, pending make install + server restart
   - log: 2026-09-24T13:32:34Z @kj edited importance and test (added) and test-tags (added)
   - log: 2026-09-24T13:33:11Z @kj amended text "with the patch active, a window refresh leaves the Claude Code status line intact (requires `make install` and a server restart to load the patch; the installed copy predates the feature)" -> "with the patch active, a window refresh leaves the Claude Code status line intact"
   - log: 2026-09-24T13:33:14Z @kj installed copy in /opt/conda site-packages is 1.0.14 and has `_make_winsize_bounce`; whether the running lab server loaded it was not checked; still open until a refresh is observed on a patched server
+  - log: 2026-10-12T10:29:21Z @kj closed
 
 ## Regression protection `SUITE`
 
@@ -369,20 +371,35 @@ Terminal queries are removed from the buffer replay of `TermSocket.open`, so an 
 
 A terminal widget sends its size to the PTY and parses PTY output only at its fitted xterm size; frontend `src/index.ts`, needs a rebuild
 
-- [-] `ACC-WIDTH-50` **No set_size before fit** - HIGH; a widget whose xterm was never opened sends no `set_size`, so a hidden restored tab never resizes its PTY to 24x80
+- [x] `ACC-WIDTH-50` **No set_size before fit** - HIGH; a widget whose xterm was never opened sends no `set_size`, so a hidden restored tab never resizes its PTY to 24x80
+  - evidence: Galata `background-terminal.spec.ts` test a: no `set_size` [24, 80] frame for the hidden terminal after a reload, at least one frame once shown, fish and bash; jest: held `set_size`, passed `stdin`, passed `set_size` right after the open; 10 of 10 jest, 10 of 10 Galata per shell
   - related: DEF-WIDTH-4 - the defect this removes
-  - test: `research-fish-width.spec.ts` T5 asserting no `set_size` [24, 80] and no `setwinsize` 24x80 for terminal A while hidden
-  - test-tags: FUNCTIONAL
+  - test: Galata `background-terminal.spec.ts`: after a reload no `set_size` frame with rows 24 and cols 80 is sent for the hidden terminal, and at least one frame is sent once it is shown
+  - test-tags: UNIT, FUNCTIONAL
+  - mechanism: 2026-10-12T06:27:03Z @kj the plugin wraps `session.send` of each widget from `ITerminalTracker.widgetAdded` until the widget node holds an element with class `xterm`; a `set_size` sent before that is not passed on; the fit after the open sends the real size
   - mechanism: 2026-09-24T14:20:35Z @kj `src/index.ts` patches `Terminal.prototype._setSessionSize` from the shared `@jupyterlab/terminal` to return while `_termOpened` is false; the first fit after show sends the size
   - log: 2026-09-24T14:20:35Z @kj added
   - log: 2026-09-24T14:24:53Z @kj rejected: dropped: frontend fix in JupyterLab @jupyterlab/terminal, not in this extension; see DEF-WIDTH-3
-- [-] `ACC-WIDTH-51` **Replay parsed at fitted size** - HIGH; a background tab restored by a reload shows its history parsed at its fitted size: once shown it has 0 stacked right-prompt rows
+  - log: 2026-10-12T06:27:03Z @kj reopened: reopened: joins the DEF-WIDTH-3 fix after experiment E3
+  - log: 2026-10-12T06:27:03Z @kj mechanism overridden; reason: public API route replaces the private `_setSessionSize` patch
+  - log: 2026-10-12T06:27:04Z @kj edited test "`research-fish-width.spec.ts` T5 asserting no `set_size` [24, 80] and no `setwinsize` 24x80 for terminal A while hidden" -> "Galata `background-terminal.spec.ts`: after a reload no `set_size` frame with rows 24 and cols 80 is sent for the hidden terminal, and at least one frame is sent once it is shown"; test-tags "FUNCTIONAL" -> "UNIT, FUNCTIONAL"
+  - log: 2026-10-12T08:21:36Z @kj closed
+- [x] `ACC-WIDTH-51` **Replay parsed at fitted size** - HIGH; a background tab restored by a reload shows its history laid out at its fitted size once it is shown: a block drawn with cursor movement appears once
+  - evidence: Galata `background-terminal.spec.ts` test a: each of 4 markers once and 2 websocket opens after the background tab is shown, fish and bash (markers [2, 2, 1, 1] and 1 open on 1.0.15); E3 on build 1.0.16: 0 duplicated markers in 2 of 2 runs
   - related: DEF-WIDTH-3 - the defect this removes
-  - test: `research-fish-width.spec.ts` T5 `e-terminal-a-shown` asserting 0 right-only prompt rows (40 today)
-  - test-tags: FUNCTIONAL
+  - test: Galata `background-terminal.spec.ts`: a block drawn twice with a cursor-up shows each marker once after the background tab is shown (2 of 4 markers twice before the fix); 2 websocket opens after the reload
+  - test-tags: UNIT, FUNCTIONAL
+  - mechanism: 2026-10-12T10:36:03Z @kj when the widget node first holds an element with class `xterm` and a stdout message arrived while the tab was hidden, the plugin calls public `ITerminal.refresh()` once; the server replays the history into the fitted xterm
+  - mechanism: 2026-10-12T06:27:04Z @kj when the widget node first holds an element with class `xterm` and a stdout message arrived before, the plugin calls public `ITerminal.refresh()` once; the server replays the history into the fitted xterm
   - mechanism: 2026-09-24T14:20:35Z @kj a widget first opened after it received stdout resets its xterm and calls `session.reconnect()`, so the server replays into the fitted xterm and the bounce repaints TUIs at that size
   - log: 2026-09-24T14:20:35Z @kj added
   - log: 2026-09-24T14:24:53Z @kj rejected: dropped: frontend fix in JupyterLab @jupyterlab/terminal, not in this extension; see DEF-WIDTH-3
+  - log: 2026-10-12T05:32:28Z @kj reopened: reopened: fix for DEF-WIDTH-3 requested 2026-10-12
+  - log: 2026-10-12T06:27:04Z @kj mechanism overridden; reason: public `refresh()` replaces the xterm reset, which needs the private `_term`
+  - log: 2026-10-12T06:27:04Z @kj edited test "`research-fish-width.spec.ts` T5 `e-terminal-a-shown` asserting 0 right-only prompt rows (40 today)" -> "Galata `background-terminal.spec.ts`: a block drawn twice with a cursor-up shows each marker once after the background tab is shown (2 of 4 markers twice before the fix); 2 websocket opens after the reload"; test-tags "FUNCTIONAL" -> "UNIT, FUNCTIONAL"
+  - log: 2026-10-12T06:27:04Z @kj amended text "a background tab restored by a reload shows its history parsed at its fitted size: once shown it has 0 stacked right-prompt rows" -> "HIGH; a background tab restored by a reload shows its history laid out at its fitted size once it is shown: a block drawn with cursor movement appears once"
+  - log: 2026-10-12T08:21:36Z @kj closed
+  - log: 2026-10-12T10:36:03Z @kj mechanism overridden; reason: trigger narrowed from any stdout before the open to stdout received while hidden (DEF-WIDTH-16)
 - [-] `ACC-WIDTH-52` **set_size on every connect** - HIGH; after a socket drop or `session.reconnect()` the widget sends `set_size` with its fitted size, and the PTY follows the narrowest attached client
   - related: DEF-WIDTH-5 - the defect this removes
   - test: `research-fish-width.spec.ts` T3 `g-narrow-typed-after-drop` asserting `set_size` 63x77 after the reconnect open and 0 new stacked rows (38 today)
@@ -402,4 +419,19 @@ A terminal widget sends its size to the PTY and parses PTY output only at its fi
   - test-tags: FUNCTIONAL
   - log: 2026-09-24T14:20:35Z @kj added
   - log: 2026-09-24T14:24:53Z @kj rejected: dropped: frontend fix in JupyterLab @jupyterlab/terminal, not in this extension; see DEF-WIDTH-3
+- [x] `ACC-WIDTH-56` **Setting turns the redraw off** - HIGH; the Settings Editor lists the background-tab redraw under this extension, on by default; with it off a background tab is not refreshed when first shown
+  - evidence: Settings Editor lists the checkbox "Redraw background terminals when first shown", ticked by default (`logs/ui-tests-settings-editor-8901.log`); Galata test b: 1 websocket open with the setting off, 2 with it on; jest: nothing held back or refreshed when `isEnabled` is false
+  - related: DEF-WIDTH-3 - the fix this switch controls
+  - test: Galata: with the setting off, show a background terminal after a reload and assert no second websocket opens for it
+  - test-tags: UNIT, FUNCTIONAL
+  - log: 2026-10-12T05:32:28Z @kj added
+  - log: 2026-10-12T08:21:36Z @kj closed
+- [x] `ACC-WIDTH-57` **Visible terminal is not reconnected** - HIGH; a terminal that is visible when its output arrives, a new one included, keeps 1 websocket open; only output received while the tab is hidden leads to the redraw
+  - evidence: Galata `a terminal the user creates is not reconnected`: 1 websocket open, 4 of 4 with bare bash on build 1.0.17 (2 opens in 4 of 4 on 1.0.16); suite 11 of 11 in fish and bash; jest case for output received while visible
+  - related: DEF-WIDTH-16 - the defect this removes
+  - test: Galata `background-terminal.spec.ts`: a terminal created with `terminal:create-new` on a fresh page has 1 websocket open; discriminates with bash, whose prompt arrives before the xterm module has loaded
+  - test-tags: UNIT, FUNCTIONAL
+  - mechanism: 2026-10-12T10:36:03Z @kj `holdUntilOpened` counts a stdout message only while `terminal.isVisible` is false
+  - log: 2026-10-12T10:36:03Z @kj added
+  - log: 2026-10-12T10:43:59Z @kj closed
 

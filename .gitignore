@@ -142,3 +142,6 @@ graphify-out/
 
 # local paste screenshots (may show client paths)
 paste-*.png
+
+# jest-junit report written by `make test`
+junit.xml
