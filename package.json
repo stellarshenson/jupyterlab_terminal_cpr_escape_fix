@@ -1,6 +1,6 @@
 {
     "name": "jupyterlab_terminal_cpr_escape_fix",
-    "version": "1.0.15",
+    "version": "1.0.18",
     "description": "Fix to the jupyterlab terminado issue that when returning to an idle JupyterLab terminal, cursor position report (CPR) escape sequences appear as literal text",
     "keywords": [
         "jupyter",
@@ -19,7 +19,8 @@
     "files": [
         "lib/**/*.{d.ts,eot,gif,html,jpg,js,js.map,json,png,svg,woff2,ttf}",
         "style/**/*.{css,js,eot,gif,html,jpg,json,png,svg,woff2,ttf}",
-        "src/**/*.{ts,tsx}"
+        "src/**/*.{ts,tsx}",
+        "schema/*.json"
     ],
     "main": "lib/index.js",
     "types": "lib/index.d.ts",
@@ -58,7 +59,9 @@
     "dependencies": {
         "@jupyterlab/application": "^4.0.0",
         "@jupyterlab/coreutils": "^6.0.0",
-        "@jupyterlab/services": "^7.0.0"
+        "@jupyterlab/services": "^7.0.0",
+        "@jupyterlab/settingregistry": "^4.0.0",
+        "@jupyterlab/terminal": "^4.0.0"
     },
     "devDependencies": {
         "@jupyterlab/builder": "^4.0.0",
@@ -111,7 +114,8 @@
             }
         },
         "extension": true,
-        "outputDir": "jupyterlab_terminal_cpr_escape_fix/labextension"
+        "outputDir": "jupyterlab_terminal_cpr_escape_fix/labextension",
+        "schemaDir": "schema"
     },
     "eslintIgnore": [
         "node_modules",
@@ -120,7 +124,8 @@
         "**/*.d.ts",
         "tests",
         "**/__tests__",
-        "ui-tests"
+        "ui-tests",
+        "tmp"
     ],
     "eslintConfig": {
         "extends": [
