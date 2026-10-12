@@ -2,6 +2,27 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.19] - 2026-10-12
+
+### Added
+
+- Clear before replay - before each history replay the server puts cursor home, erase screen and erase scrollback in front of the replayed output, so the terminal holds the history once after a reconnect; no input mode is reset, and an empty replay buffer gets the same clear
+- `DEFAULTS['clear_before_replay']` toggle (default on); `suppress_buffer_replay` takes precedence
+- Shell guard for the repaint on attach - no size step while the foreground process group of the terminal is one shell alone (bash, sh, dash, zsh, fish, ksh, tcsh, csh)
+- Monkey patch register `docs/monkeypatches.md` and README section "Monkey patches" - for each of the six patches the replaced attribute, the switch, the canary test, the retire condition and the removal steps
+- Mock-based pytest cases for the clear and for the repaint step, and Galata specs `ui-tests/tests/replay-clear.spec.ts` and `ui-tests/tests/repaint-on-attach.spec.ts`, runnable with fish or bash
+
+### Changed
+
+- Repaint on attach sets the PTY one column narrower for 0.12 s, in place of one row taller
+- README lists the limits of the clear and of the repaint step: after every reconnect the terminal holds only the last 1000 output chunks, a line editor that is not one of the eight shells is still stepped, and a full-screen program that is itself a shell script gets no step
+
+### Fixed
+
+- A plain reconnect drew the terminal history twice
+- The redraw of a background terminal kept the old cursor row, and history printed before an alternate-screen program was not drawn again
+- A program that addresses rows absolutely on the normal buffer lost the line it committed during the repaint step
+
 ## [1.0.18] - 2026-10-12
 
 ### Added
