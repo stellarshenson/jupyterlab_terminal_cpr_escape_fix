@@ -41,7 +41,7 @@ const READY = 'PRB-READY';
 
 /**
  * A full-screen program: static header and footer drawn once and again on
- * SIGWINCH, then 1600 one-byte updates of one field, so the static rows are
+ * SIGWINCH, then 1600 updates of one field, so the static rows are
  * older than the replay window.
  */
 const STATIC_PROGRAM = String.raw`import os, signal, sys, time
