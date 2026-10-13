@@ -68,7 +68,10 @@ module.exports = {
         .filter(Boolean)
         .join(path.delimiter),
       // test shells must not write the developer's fish history
-      fish_history: ''
+      fish_history: '',
+      // any other exception in a Jupyter config file ends the server too;
+      // without this traitlets logs it and the server starts on default settings
+      TRAITLETS_APPLICATION_RAISE_CONFIG_FILE_ERROR: '1'
     }
   }
 };

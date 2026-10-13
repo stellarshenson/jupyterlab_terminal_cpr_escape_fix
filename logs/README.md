@@ -18,3 +18,8 @@ output here per workspace policy.
 - `e5-<arm>-<cell>[-bash]-<port>.log`, `e5-queue-*.log` - Galata output of experiment E5 (`tmp/research/e5/`), one file per arm and cell
 - `verify-bounce-<pytest|jest|lint|galata-<shell>|mutations-pytest|probe-<shell>|m6>[-<port>].log` - verifier runs of the column-step and clear-before-replay changes (`tmp/research/bounce-verify/`)
 - `review3-<bh|ux|fix|fix2>-<run>[-<port>].log` - runs of review round 3 and of its fix rounds (`tmp/research/review3/`)
+- `publish-<version>.log` - `make publish` output of a release
+- `live-watch-pty-<stamp>.log` - PTY sizes of the lab's terminal shells, read every 5 ms without a client (`tmp/research/restart/watch_live_pty.py`)
+- `restart-<build>-<shell>-<port>.log`, `restart-audit-<run>-<port>.log` - Galata output of the restart experiment and of its check (`tmp/research/restart/`, `ui-tests/experiments/restart/`)
+- `cfgcheck-<step>[-<port>].log` - runs of the test server config check fix and of its gates (`tmp/research/cfgcheck/`)
+- `review4-<lens>-<probe>.log` - probes of the reviewers of review 4 (`tmp/research/review4/`)

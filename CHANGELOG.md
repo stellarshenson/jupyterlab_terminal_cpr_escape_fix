@@ -2,6 +2,17 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## [1.0.21] - 2026-10-13
+
+### Changed
+
+- No change in the extension code since 1.0.20; this version changes the Galata test harness, the records and the trackers
+- `docs/observed-effects.md` records the observation of 2026-10-13: a lab on build 1.0.18 shows the prompt in row 1 after a server restart, and version 1.0.20 removes it (0 of 9 trials against 9 of 9); the right part of the first fish prompt at column 80 comes from the platform's `fish_handle_reflow 0`, not from the extension
+
+### Fixed
+
+- An exception raised by the Galata server config (failed build check, unknown `CPR_FIX_DEFAULTS` key, a value that is not JSON) started the test server on default settings; the two checks now end the server process, and Playwright starts the server with `TRAITLETS_APPLICATION_RAISE_CONFIG_FILE_ERROR=1`
+
 ## [1.0.20] - 2026-10-12
 
 ### Changed

@@ -290,6 +290,13 @@ Full-screen repaint after a client attaches: the replay holds only diff frames, 
   - log: 2026-10-12T15:44:59Z @kj amended title "No repaint step while a shell is in front" -> "No repaint step for a shell at its prompt"; text "the repaint step is skipped when the leader of the terminal's foreground process group is a shell (bash, sh, dash, zsh, fish, ksh, tcsh, csh); a shell prompt with a typed line that fills the width keeps the output above it across an attach; lookup error: the step runs" -> "HIGH; no repaint step while the terminal's foreground process group is one shell alone (bash, sh, dash, zsh, fish, ksh, tcsh, csh); a typed shell line that fills the width keeps the output above it; a shell with a child in its group is stepped; lookup error: step runs"
   - log: 2026-10-12T15:44:59Z @kj mechanism updated "2026-10-12T14:47:28Z @kj _shell_in_foreground reads /proc/<tcgetpgrp(fd)>/comm; a shell at its prompt needs no repaint because the replay restores its line, and a width step makes its line editor miscount the rows of a line that fills the width" -> "_shell_at_prompt reads /proc/<tcgetpgrp(fd)>/comm and the leader's children file; a shell at its prompt needs no repaint, and a width step makes its line editor miscount the rows of a line that fills the width; a child in the leader's group means a program run without job control, which needs the repaint"; reason: names both conditions of the guard and the reason for each
   - log: 2026-10-12T15:44:59Z @kj closed
+- [-] `ACC-BOUNCE-70` **A defunct child does not count for the shell guard** - MEDIUM; a defunct child in the own process group of the shell does not count as a running program: the shell is taken as alone and gets no repaint step; a live child in the group still makes the step run; unreadable child state: step runs
+  - related: ACC-BOUNCE-69 - the guard this refines; DEF-BOUNCE-20 - the defect this removes
+  - test: TestWinsizeBounce guard cases: defunct child, live child, both, unreadable state; one test with real processes on a PTY
+  - test-tags: UNIT
+  - mechanism: 2026-10-13T17:06:33Z @kj `_shell_at_prompt` skips a child whose state field in /proc/<pid>/stat is Z
+  - log: 2026-10-13T17:06:33Z @kj added
+  - log: 2026-10-13T17:08:34Z @kj rejected: not adopted: DEF-BOUNCE-20 is rejected as a recorded limit with no change on screen; the guard rule stays as closed in ACC-BOUNCE-69
 
 ## Regression protection `SUITE`
 
@@ -307,6 +314,17 @@ Test rules that stop a filter change from stripping genuine output or regressing
   - test-tags: UNIT
   - log: 2026-09-24T13:32:39Z @kj added
   - log: 2026-09-24T13:32:44Z @kj closed: carried over from the legacy Regression protection text; verified
+- [x] `ACC-SUITE-71` **A config file exception ends the test server** - LOW; an exception of ui-tests/jupyter_server_test_config.py ends the test server with an exit status that is not 0 and no listener: the build check and the switch check however the server is started, any other exception when Playwright starts the server
+  - evidence: final tree, 2026-10-13: both checks by hand exit 1 in 1.6 to 1.7 s, 0 listeners (logs/cfgcheck-v2-hand-a-8905.log, cfgcheck-v2-hand-b-8905.log); value that is not JSON through Playwright exit 1 in 3.1 s, no new listener (cfgcheck-v2-playwright-badjson-8905.log); pytest 163, jest 11, lint, Galata 20 fish, 20 bash
+  - related: DEF-SUITE-21 - the defect this removes
+  - test: port 8905: by hand with an unknown CPR_FIX_DEFAULTS key, and with the package outside the working tree: exit status 1, no listener; through jlpm playwright test with a CPR_FIX_DEFAULTS value that is not JSON: exit status 1, no test server
+  - test-tags: MANUAL
+  - mechanism: 2026-10-13T17:59:48Z @kj the two checks raise SystemExit, which traitlets does not catch; ui-tests/playwright.config.js starts the server with TRAITLETS_APPLICATION_RAISE_CONFIG_FILE_ERROR=1, so traitlets raises every other exception of a config file
+  - mechanism: 2026-10-13T17:06:36Z @kj the checks raise SystemExit, which the Jupyter config loader does not catch
+  - log: 2026-10-13T17:06:36Z @kj added
+  - log: 2026-10-13T17:59:48Z @kj amended title "A failed config check ends the test server" -> "A config file exception ends the test server"; text "when the build check or the switch check of ui-tests/jupyter_server_test_config.py fails, the server process ends with an exit status that is not 0 and binds no port" -> "LOW; an exception of ui-tests/jupyter_server_test_config.py ends the test server with an exit status that is not 0 and no listener: the build check and the switch check however the server is started, any other exception when Playwright starts the server"
+  - log: 2026-10-13T17:59:48Z @kj edited test "start jupyter lab with the test config and an unknown CPR_FIX_DEFAULTS key on port 8905: exit status not 0, nothing listens on 8905" -> "port 8905: by hand with an unknown CPR_FIX_DEFAULTS key, and with the package outside the working tree: exit status 1, no listener; through jlpm playwright test with a CPR_FIX_DEFAULTS value that is not JSON: exit status 1, no test server"
+  - log: 2026-10-13T17:59:53Z @kj closed
 
 ## Replay without queries `REPLAY`
 

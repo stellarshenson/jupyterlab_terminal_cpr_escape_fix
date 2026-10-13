@@ -55,13 +55,14 @@ print(f"terminal shell: {c.ServerApp.terminado_settings['shell_command']}", file
 # The server extension under test must be the working tree (playwright.config.js
 # puts it on PYTHONPATH), not the installed copy in site-packages. This config
 # runs before the extension loads, so the module imported here is the one the
-# server uses.
+# server uses. The two checks raise SystemExit, not an Exception: traitlets logs
+# an Exception raised by a config file and starts the server on default settings.
 import jupyterlab_terminal_cpr_escape_fix as cpr_fix  # noqa: E402
 
 _REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _PACKAGE = os.path.dirname(os.path.abspath(cpr_fix.__file__))
 if _PACKAGE != os.path.join(_REPO, "jupyterlab_terminal_cpr_escape_fix"):
-    raise RuntimeError(f"cpr-fix imported from {_PACKAGE}, not the working tree {_REPO}")
+    raise SystemExit(f"cpr-fix imported from {_PACKAGE}, not the working tree {_REPO}")
 # stderr: playwright's webServer ignores the server's stdout
 print(f"cpr-fix package under test: {_PACKAGE}", file=sys.stderr)
 
@@ -71,7 +72,7 @@ print(f"cpr-fix package under test: {_PACKAGE}", file=sys.stderr)
 _overrides = json.loads(os.environ.get("CPR_FIX_DEFAULTS") or "{}")
 _unknown = set(_overrides) - set(cpr_fix.DEFAULTS)
 if _unknown:
-    raise ValueError(f"CPR_FIX_DEFAULTS has unknown keys {sorted(_unknown)}; known: {sorted(cpr_fix.DEFAULTS)}")
+    raise SystemExit(f"CPR_FIX_DEFAULTS has unknown keys {sorted(_unknown)}; known: {sorted(cpr_fix.DEFAULTS)}")
 cpr_fix.DEFAULTS.update(_overrides)
 print(f"cpr-fix DEFAULTS: {cpr_fix.DEFAULTS}", file=sys.stderr)
 
